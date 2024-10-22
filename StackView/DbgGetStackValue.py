@@ -24,6 +24,10 @@ class CpuInfo():
             self.cpu_struct =  {32:"x86",64:"x64"}[bitness]
 
     @staticmethod
+    def get_structure():
+        return idaapi.get_inf_structure().procname.lower()
+
+    @staticmethod
     def GetCpuInfo():
         procname =  CpuInfo().get_structure()
         bitness = CpuInfo().get_bitness()
@@ -32,9 +36,6 @@ class CpuInfo():
         else:
             return None
 
-    @staticmethod
-    def get_structure():
-        return idaapi.get_inf_structure().procname.lower()
 
     @staticmethod
     def get_bitness():

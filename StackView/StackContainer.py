@@ -115,6 +115,11 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
             self.linebgcolor = "#" + "%06X"%color
         self.setStyle()      
 
+    def GetbgColor(self):
+        return self.linebgcolor
+
+
+
 
 class StackContainer(QtWidgets.QWidget):
     def __init__(self, parent=None,bitness=64):
@@ -125,9 +130,9 @@ class StackContainer(QtWidgets.QWidget):
         self.address_id = []
         self.widget_dict = {}
         self.highlighting = []
-
+        self.highlightingAddress = -1
         self.backgroundColor = DEFINE_BACKGROUND_COLOR
-
+        self.originalhighlightingAddressColor = TRANSPARENT
 
         # 设置窗口大小
         self.setGeometry(400, 400, 800, 600)
@@ -137,11 +142,11 @@ class StackContainer(QtWidgets.QWidget):
         self.table_widget = QtWidgets.QTableWidget()
 
         # 设置表格的行数和列数
-        self.table_widget.setColumnCount(6)
         
 
         # Format: [Pointer | Address | Value | Type | State | Description]
         headers = ["", "Address", "Value", "Type", "State", "Description"]
+        self.table_widget.setColumnCount(len(headers))
         self.objname_header_dict = {
             1   : "pointer_%X",
             2  : "address_%X",
@@ -154,20 +159,23 @@ class StackContainer(QtWidgets.QWidget):
 
         # 设置表格的列表头 高度和宽度
         horizontalHeader = self.table_widget.horizontalHeader()
+        horizontalHeader.setSectionsClickable(False)  # 不可选中
         horizontalHeader.setSectionsMovable(True) # 允许移动
         horizontalHeader.setMaximumHeight(33) # 高度
+        horizontalHeader.setMinimumSectionSize(50)
 
         # Pointer Header
         horizontalHeader.resizeSection(0,75)
-        horizontalHeader.setSectionResizeMode(0,QtWidgets.QHeaderView.Fixed)
 
         # Address Header
         horizontalHeader.resizeSection(1,bitness*4-bitness//2+5)
-        horizontalHeader.setSectionResizeMode(1,QtWidgets.QHeaderView.Fixed)
+        horizontalHeader.setSectionResizeMode(1,QtWidgets.QHeaderView.Fixed) 
 
         # Value Header
         horizontalHeader.resizeSection(2,bitness*4-bitness//2+5)
-        horizontalHeader.setSectionResizeMode(2,QtWidgets.QHeaderView.Fixed)
+        horizontalHeader.setSectionResizeMode(2,QtWidgets.QHeaderView.Fixed) 
+
+
 
         horizontalHeader.resizeSection(3,55)
         horizontalHeader.resizeSection(4,60)
@@ -202,6 +210,7 @@ class StackContainer(QtWidgets.QWidget):
         self.table_widget.setPalette(palette)
 
         self.table_widget.itemSelectionChanged.connect(self.highlight_matching_items)
+        self.table_widget.itemSelectionChanged.connect(self.highlight_selected_line)
 
 
         # 创建一个垂直布局
@@ -238,16 +247,14 @@ class StackContainer(QtWidgets.QWidget):
                 font-weight: normal;
             }}
                                 
-            QTableWidget::item{{   /* 条目元素 */
-                border: none;  /* 移除表格的外部边框 */
-            }}
-                                
+
             QTableWidget::item:selected{{   /* 选中条目元素 */
-                background-color: transparent;
+                background-color: {SELECT_LINE_BACKGROUND_COLOR};
                 border: none;  /* 移除表格的外部边框 */
             }}
         """
         self.table_widget.setStyleSheet(QSS_STR)
+        self.table_widget.setShowGrid(False)
     
 
 
@@ -314,8 +321,9 @@ class StackContainer(QtWidgets.QWidget):
         # 恢复默认背景颜色
         if(self.highlighting != []):
             for items in self.highlighting:
-                item = self.widget_dict[items]
-                item.SetbgColor("transparent")
+                item = self.widget_dict[items[0]]
+                item.SetbgColor(items[1])
+            self.highlighting = []
         
         # 获取当前选中的单元格
         #获取当前选中的列
@@ -330,10 +338,54 @@ class StackContainer(QtWidgets.QWidget):
         if(selected_value != ""):
             for item in self.widget_dict:
                 if(self.widget_dict[item].text() == selected_value):
+                    originalcolor = self.widget_dict[item].GetbgColor()
                     self.widget_dict[item].SetbgColor(0xFFFF33)
-                    self.highlighting.append(item)
+                    self.highlighting.append([item,originalcolor])
         return True
 
+
+    def change_line_color(self,line,color):
+        if(line >= 0):
+            if(isinstance(color,str)):
+                for i in range(self.table_widget.columnCount()):
+                    item = self.table_widget.item(line,i)
+                    item.setBackground(QtGui.QColor(color)) 
+            elif(isinstance(color, QtGui.QBrush) or isinstance(color, QtGui.QColor)):
+                for i in range(self.table_widget.columnCount()):
+                    item = self.table_widget.item(line,i)
+                    item.setBackground(color)
+
+
+
+
+    def highlight_selected_line(self):
+        if(self.highlightingAddress >= 0):
+            self.change_line_color(self.address_id.index(self.highlightingAddress), self.originalhighlightingAddressColor)
+
+
+        select_line = self.table_widget.currentRow()
+        self.highlightingAddress = self.address_id[select_line]
+        item = self.table_widget.item(select_line,1)
+        if(item):
+            brush = item.background()
+        else:
+            brush = TRANSPARENT
+        self.originalhighlightingAddressColor = brush
+        self.change_line_color(self.address_id.index(self.highlightingAddress), SELECT_LINE_BACKGROUND_COLOR)
+        
+
+
+    def get_visible_top_row(self):
+            viewport = self.table_widget.viewport()
+            top_y = viewport.rect().top()
+            top_row = self.table_widget.verticalHeader().visualIndexAt(top_y)
+            return top_row
+
+
+    def scrollrow(self,num):
+        current_row = self.get_visible_top_row()
+        target_row = current_row + num
+        self.table_widget.scrollToItem(self.table_widget.item(target_row, 0),self.table_widget.PositionAtTop)
 
 
 
@@ -409,8 +461,8 @@ class StackContainer(QtWidgets.QWidget):
         self.table_widget.setCellWidget(row, 3, type_widget)
         self.table_widget.setCellWidget(row, 4, state_widget)
         self.table_widget.setCellWidget(row, 5, description_widget)
-
-        for i in range(0,6):
+        for i in range(0,self.table_widget.columnCount()):
+            self.table_widget.setItem(row, i, QtWidgets.QTableWidgetItem())
             item = self.table_widget.cellWidget(row,i)
             if item != None:
                 self.widget_dict[item.objectName()] = item
@@ -463,17 +515,19 @@ class StackContainer(QtWidgets.QWidget):
             return False
         elif(len(self.address_id) != 0):
             target_addr = self.address_id[0] - int(self.bitness / 8)
-        elif(Address != None):
+        else:
             target_addr = Address
+
+        self.scrollrow(1)
         return self.AddLine(0,target_addr, *args)
 
 
     def delLineAtBegin(self):
         if self.table_widget.rowCount() > 0:
             Address = self.address_id[0]
+            self.scrollrow(-1)
             return self.DeleteLine(Address)
         else:
-            print("No rows to pop.")
             return False
 
     def addLineAtEnd(self,Address = None,*args):
@@ -493,7 +547,6 @@ class StackContainer(QtWidgets.QWidget):
             self.DeleteLine(Address)
             return True
         else:
-            print("No rows to pop.")
             return False
 
 
@@ -519,5 +572,25 @@ class StackContainer(QtWidgets.QWidget):
             return self.setbgcolor_wedge(key,Color)
         return False
 
+    def ChangeLinebgColor(self,Address,Color):
+        if Address not in self.address_id:
+            print("Address not found")
+            return False
+        # 找到对应地址的行索引
+        row_index = self.address_id.index(Address)
+        self.change_line_color(row_index,Color)
 
 
+    def ClearAllLines(self):
+        while True:
+            if(not self.delLineAtBegin()):
+                break
+
+
+    def RolltoAddress(self,Address):
+        if Address not in self.address_id:
+                print("Address not found")
+                return False
+        # 找到对应地址的行索引
+        row_index = self.address_id.index(Address)
+        self.table_widget.scrollToItem(self.table_widget.item(row_index, 0),self.table_widget.PositionAtTop)
