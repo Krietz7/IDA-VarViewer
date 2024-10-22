@@ -12,7 +12,7 @@ sys.path.append("F:\\Projects\\IDA-StackAnnotation")
 from StackView.Defines import *
 from StackView.StackContainer import *
 from StackView.Viewer import *
-
+from StackView.Dbg_Hooks import *
 
 
 class Sec_MenuContext(idaapi.action_handler_t):
@@ -87,7 +87,13 @@ class StackInfo(idaapi.plugin_t):
     def init(self):
         
         try:
+            # 注册函数Hook
+            register_dbg_hook()
+
+            # 注册菜单
             SecStackMenu.register(self, "Open Stack View")
+
+            # 注册菜单项到IDA的调试窗口中
             idaapi.attach_action_to_menu("Debugger/Debugger windows/StackMenu", SecStackMenu.get_name(), idaapi.SETMENU_APP)
             
         except:
@@ -103,6 +109,9 @@ class StackInfo(idaapi.plugin_t):
 
 
     def term(self):
+
+
+        
         pass
 
 

@@ -100,6 +100,9 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
         self.blockSignals(False)
         self.adjust_line_edit_width()
 
+    def GetLine(self):
+        return self.text()
+
     def SetColor(self, color):
         if(isinstance(color,str)):
             self.linecolor = color
@@ -118,11 +121,19 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
     def GetbgColor(self):
         return self.linebgcolor
 
+    
+    def Clear(self):
+        self.EditLine("")
+        self.SetColor(DEFINE_LINE_COLOR)
+
+
+
+
 
 
 
 class StackContainer(QtWidgets.QWidget):
-    def __init__(self, parent=None,bitness=64):
+    def __init__(self,bitness=64):
         super(StackContainer,self).__init__()
         self.bitness = bitness
 
@@ -148,12 +159,12 @@ class StackContainer(QtWidgets.QWidget):
         headers = ["", "Address", "Value", "Type", "State", "Description"]
         self.table_widget.setColumnCount(len(headers))
         self.objname_header_dict = {
-            1   : "pointer_%X",
-            2  : "address_%X",
-            3   : "value_%X",
-            4  : "type_%X",
-            5  : "state_%X",
-            6  : "description_%X",
+            0   : "pointer_%X",
+            1  : "address_%X",
+            2   : "value_%X",
+            3  : "type_%X",
+            4  : "state_%X",
+            5  : "description_%X",
         }
         self.table_widget.setHorizontalHeaderLabels(headers)
 
@@ -398,6 +409,14 @@ class StackContainer(QtWidgets.QWidget):
             item.EditLine(text)
             return True
         return False
+    
+    def get_wedge_text(self,key = None):
+        if(key in self.widget_dict):
+            item = self.widget_dict[key]
+            return item.GetLine()
+        return False
+
+
 
     def setcolor_wedge(self,key = None, color = None):
         if(key in self.widget_dict):
@@ -412,6 +431,21 @@ class StackContainer(QtWidgets.QWidget):
             item.SetbgColor(color)
             return True
         return False
+    
+
+
+    def clear_wedge(self,key = None):
+        if(key in self.widget_dict):
+            item = self.widget_dict[key]
+            item.Clear()
+            return True
+        return False
+
+
+
+
+
+
 
     def AddLine(self,row,Address, Value, Type = None, State = None, Description = None):
         if(Address in self.address_id):
@@ -423,7 +457,7 @@ class StackContainer(QtWidgets.QWidget):
         # 插入新行
         self.table_widget.insertRow(row)
 
-        unit_size = self.bitness / 8
+        unit_size = self.bitness // 8
 
         if(unit_size == 8):
             address_str =  "%016X"%Address
@@ -514,7 +548,7 @@ class StackContainer(QtWidgets.QWidget):
             print("Please give a base address")
             return False
         elif(len(self.address_id) != 0):
-            target_addr = self.address_id[0] - int(self.bitness / 8)
+            target_addr = self.address_id[0] - self.bitness // 8
         else:
             target_addr = Address
 
@@ -535,7 +569,7 @@ class StackContainer(QtWidgets.QWidget):
             print("Please give a base address")
             return False
         elif(len(self.address_id) != 0):
-            target_addr = self.address_id[self.table_widget.rowCount()-1] + int(self.bitness / 8)
+            target_addr = self.address_id[self.table_widget.rowCount()-1] + self.bitness // 8
         elif(Address != None):
             target_addr = Address
         return self.AddLine(self.table_widget.rowCount(),target_addr, *args)
@@ -552,11 +586,30 @@ class StackContainer(QtWidgets.QWidget):
 
 
 
-    def EditLine(self,Address,Header,text):
+    def EditItem(self,Address,Header,text):
         key = self.objname_header_dict[Header]%Address
         if(key != None):
-            return self.edit_wedge(key,text)
+            if(Header == 2):
+                unit_size = self.bitness // 8
+
+                if(unit_size == 8):
+                    text =  "%016X"%text
+                elif(unit_size == 4):
+                    text =  "%08X"%text
+                elif(unit_size == 2):
+                    text =  "%04X"%text
+                return self.edit_wedge(key,text)
+
+            else:
+                return self.edit_wedge(key,text)
         return False
+    
+    def GetItemText(self,Address,Header):
+        key = self.objname_header_dict[Header]%Address
+        if(key != None):
+            return self.get_wedge_text(key)
+        return False
+    
 
     def ChangeEditColor(self,Address,Header,Color):
         key = self.objname_header_dict[Header]%Address
@@ -581,6 +634,15 @@ class StackContainer(QtWidgets.QWidget):
         self.change_line_color(row_index,Color)
 
 
+    def ClearItme(self,Address,Header):
+        key = self.objname_header_dict[Header]%Address
+        if(key != None):
+            return self.clear_wedge(key)
+        return False
+
+
+
+
     def ClearAllLines(self):
         while True:
             if(not self.delLineAtBegin()):
@@ -594,3 +656,11 @@ class StackContainer(QtWidgets.QWidget):
         # 找到对应地址的行索引
         row_index = self.address_id.index(Address)
         self.table_widget.scrollToItem(self.table_widget.item(row_index, 0),self.table_widget.PositionAtTop)
+
+
+
+    def GetAddressRange(self):
+        if(self.address_id is not None):
+            return self.address_id[0], self.address_id[len(self.address_id)-1]
+        else:
+            return -1,-1
