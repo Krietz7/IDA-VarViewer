@@ -1,13 +1,11 @@
 import idaapi
 
-from PyQt5 import QtWidgets,QtGui,Qt 
+from PyQt5 import QtWidgets,QtGui,Qt,QtCore
 from PyQt5.QtCore import Qt
 
 
 
 from StackView.Defines import *
-
-
 
 class ReadOnlyLineEdit(QtWidgets.QLineEdit):
     def __init__(self,text=None,parent=None):
@@ -24,7 +22,7 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
         self.cursor_timer = None
 
         self.cursorPositionChanged.connect(self.cursorPositionChange)
-        self.adjust_line_edit_width()
+        self.AdjustLineEditWidth()
         self.setStyle()
 
     def focusInEvent(self, event):
@@ -75,7 +73,7 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
             self.table_parent.show_context_menu(global_pos)
 
     # 更新文本框宽度
-    def adjust_line_edit_width(self):
+    def AdjustLineEditWidth(self,):
         # 获取当前字体
         font = self.font()
         # 创建 QFontMetrics 对象
@@ -85,20 +83,24 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
         extra_padding =  5
         total_width = text_width + extra_padding
 
-        # 设置 QLineEdit 的固定宽度
-        self.setFixedWidth(total_width)
+        # 设置 QLineEdit 的最大宽度
+        self.setMaximumWidth(total_width)
 
     # 设置样式
     def setStyle(self):
-        super(ReadOnlyLineEdit, self).setStyleSheet(f"border: none;background-color: {self.linebgcolor};color: {self.linecolor}")
+        super(ReadOnlyLineEdit, self).setStyleSheet(f"selection-color:{TEXT_SELECTED_COLOR};selection-background-color:{TEXT_SELECTED_BACKGROUND_COLOR};border: none;background-color: {self.linebgcolor};color: {self.linecolor}")
 
 
-
-    def EditLine(self, text):
+    def EditLine(self, text,color=None):
         self.blockSignals(True)
         self.setText(text)
         self.blockSignals(False)
-        self.adjust_line_edit_width()
+        self.AdjustLineEditWidth()
+
+    def InsertText(self, text,color=None):
+        origin_text = self.text()
+        self.EditLine(origin_text + text)
+        self.AdjustLineEditWidth()
 
     def GetLine(self):
         return self.text()
@@ -125,9 +127,229 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
     def Clear(self):
         self.EditLine("")
         self.SetColor(DEFINE_LINE_COLOR)
+        self.SetbgColor(TRANSPARENT)
 
 
 
+
+class ReadOnlyTextEdit(QtWidgets.QTextEdit):
+    def __init__(self, text=None, parent=None):
+        super(ReadOnlyTextEdit, self).__init__(parent)
+        self.table_parent = parent
+        self.setReadOnly(True)
+        self.setFont(QtGui.QFont(TEXT_FONT, TEXT_FONT_SIZE))
+        # 禁止换行
+        self.setLineWrapMode(self.NoWrap)
+        self.setAutoFormatting(self.AutoNone)
+        # 设置固定高度
+        self.setFixedHeight(27)
+        # 禁用垂直滚动条
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 禁用水平滚动条
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+
+
+
+
+        self.linecolor = DEFINE_LINE_COLOR
+        self.linebgcolor = TRANSPARENT
+
+        self._cursor_visible = True
+        self.cursor_timer = None
+
+        if text:
+            self.EditLine(text)
+
+
+        self.setStyle()
+        self.installEventFilter(self)
+        self.cursorPositionChanged.connect(self.cursorPositionChange)
+
+    def wheelEvent(self, event):
+        # 忽略鼠标滚轮事件
+        event.ignore()
+
+
+
+    def keyPressEvent(self, event):
+        if event.key() in (QtCore.Qt.Key_Left, QtCore.Qt.Key_Right):
+            cursor = self.textCursor()
+            if event.modifiers() & QtCore.Qt.ShiftModifier:
+                # 按下 Shift 键时进行选择
+                cursor.movePosition({
+                    QtCore.Qt.Key_Left: QtGui.QTextCursor.Left,
+                    QtCore.Qt.Key_Right: QtGui.QTextCursor.Right,
+                }[event.key()], QtGui.QTextCursor.KeepAnchor)
+            else:
+                # 不按 Shift 键时仅移动光标
+                cursor.movePosition({
+                    QtCore.Qt.Key_Left: QtGui.QTextCursor.Left,
+                    QtCore.Qt.Key_Right: QtGui.QTextCursor.Right,
+                }[event.key()])
+            self.setTextCursor(cursor)
+        if event.key() in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down):
+            # 将上下方向键事件传递给父控件
+            if self.parent():
+                self.parent().keyPressEvent(event)
+            return
+        # 全选 和 复制
+        elif event.matches(QtGui.QKeySequence.Copy) or event.matches(QtGui.QKeySequence.SelectAll):
+            super().keyPressEvent(event)
+            return
+
+
+
+    def eventFilter(self, obj, event):
+        if (obj is self and event.type() in [QtCore.QEvent.InputMethodQuery,QtCore.QEvent.Wheel] ):
+            self.verticalScrollBar().setValue(4)
+        return False
+
+
+    # 保持箭头光标样式
+    def enterEvent(self, event):
+        self.viewport().setCursor(QtCore.Qt.ArrowCursor) 
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.viewport().setCursor(QtCore.Qt.ArrowCursor) 
+        super().leaveEvent(event)
+
+
+    def focusInEvent(self, event):
+        super(ReadOnlyTextEdit, self).focusInEvent(event)
+        self.cursorPositionChange()
+        if self.table_parent:
+            cursor = self.textCursor()
+            cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.MoveAnchor, self.table_parent.cursor_position)
+            self.setTextCursor(cursor)
+        
+        if not self.cursor_timer:
+            self.cursor_timer = self.startTimer(500) 
+
+    def focusOutEvent(self, event):
+        super(ReadOnlyTextEdit, self).focusOutEvent(event)
+        cursor = self.textCursor()
+        cursor.clearSelection()
+        self.setTextCursor(cursor)
+        if self.table_parent:
+            self.table_parent.cursor_position = self.textCursor().position()
+        if self.cursor_timer is not None:
+            self.killTimer(self.cursor_timer)
+            self.cursor_timer = None
+        self._cursor_visible = False
+        self.update()
+
+    def cursorPositionChange(self, event=None):
+        if self.cursor_timer is not None:
+            self.killTimer(self.cursor_timer)
+        self._cursor_visible = True
+        self.cursor_timer = self.startTimer(500)
+
+    def timerEvent(self, event):
+        if self.cursor_timer == event.timerId():
+            self._cursor_visible = not self._cursor_visible
+            self.viewport().update()
+        super(ReadOnlyTextEdit, self).timerEvent(event)
+
+    def paintEvent(self, event):
+        super(ReadOnlyTextEdit, self).paintEvent(event)
+        if self.isReadOnly() and self.hasFocus() and self._cursor_visible and not self.toPlainText().strip() == '':
+            painter = QtGui.QPainter(self.viewport())
+            cursor_rect = self.cursorRect()
+            painter.fillRect(cursor_rect.left(), cursor_rect.top(), 2, cursor_rect.height(), QtGui.QColor('black'))
+
+    def contextMenuEvent(self, event):
+        global_pos = self.mapToGlobal(event.pos())
+        if self.table_parent:
+            self.table_parent.show_context_menu(global_pos)
+
+    def AdjustTextEditWidth(self):
+        font = self.font()
+        font_metrics = QtGui.QFontMetrics(font)
+        lines = self.toPlainText().splitlines()
+        max_text_width = max([font_metrics.width(line) for line in lines]) if lines else 0
+        extra_padding = 8
+        total_width = max_text_width + extra_padding
+        self.setMaximumWidth(total_width)
+
+        cursor = self.textCursor()
+        cursor.setPosition(0)
+        self.setTextCursor(cursor)
+
+
+    def setStyle(self):
+        style_sheet = f"""
+            QTextEdit {{
+                selection-color: {TEXT_SELECTED_COLOR};
+                selection-background-color: {TEXT_SELECTED_BACKGROUND_COLOR};
+                border: none;
+                background-color: {self.linebgcolor};
+                color: {self.linecolor};
+            }}
+        """
+        self.setStyleSheet(style_sheet)
+
+    def EditLine(self, text, color = None):
+        if(color == None):
+            color = self.linecolor
+        cursor = self.textCursor()
+        cursor.select(QtGui.QTextCursor.LineUnderCursor)
+        cursor.removeSelectedText()
+        format = QtGui.QTextCharFormat()
+        if isinstance(color, str):
+                    format.setForeground(QtGui.QColor(color))
+        elif isinstance(color, int):
+            format.setForeground(QtGui.QColor("#" + "%06X" % color))
+        cursor.mergeCharFormat(format)
+
+
+        cursor.insertText(text)
+        self.AdjustTextEditWidth()
+        
+
+    def InsertText(self, text, color = None):
+        if(color == None):
+            color = self.linecolor
+        cursor = self.textCursor()
+        cursor.movePosition(cursor.End)
+        self.setTextCursor(cursor)
+
+        format = QtGui.QTextCharFormat()
+        if isinstance(color, str):
+                    format.setForeground(QtGui.QColor(color))
+
+        elif isinstance(color, int):
+            format.setForeground(QtGui.QColor("#" + "%06X" % color))
+        cursor.mergeCharFormat(format)
+        cursor.insertText(text)
+        self.AdjustTextEditWidth()
+
+
+    def GetLine(self):
+        return self.toPlainText()
+
+    def SetColor(self, color):
+        if isinstance(color, str):
+            self.linecolor = color
+        elif isinstance(color, int):
+            self.linecolor = "#" + "%06X" % color
+        self.setStyle()
+
+    def SetbgColor(self, color):
+        if isinstance(color, str):
+            self.linebgcolor = color
+        elif isinstance(color, int):
+            self.linebgcolor = "#" + "%06X" % color
+        self.setStyle()
+
+    def GetbgColor(self):
+        return self.linebgcolor
+
+    def Clear(self):
+        self.EditLine("")
+        self.SetColor(DEFINE_LINE_COLOR)
+        self.SetbgColor(TRANSPARENT)
 
 
 
@@ -156,15 +378,16 @@ class StackContainer(QtWidgets.QWidget):
         
 
         # Format: [Pointer | Address | Value | Type | State | Description]
-        headers = ["", "Address", "Value", "Type", "State", "Description"]
+        headers = ["", "Address", "Value","Description", "Type", "State", "remark"]
         self.table_widget.setColumnCount(len(headers))
         self.objname_header_dict = {
-            0   : "pointer_%X",
+            0  : "pointer_%X",
             1  : "address_%X",
-            2   : "value_%X",
-            3  : "type_%X",
-            4  : "state_%X",
-            5  : "description_%X",
+            2  : "value_%X",
+            3  : "meaning_%X",
+            4  : "type_%X",
+            5  : "state_%X",
+            6  : "description_%X",
         }
         self.table_widget.setHorizontalHeaderLabels(headers)
 
@@ -177,6 +400,7 @@ class StackContainer(QtWidgets.QWidget):
 
         # Pointer Header
         horizontalHeader.resizeSection(0,75)
+        horizontalHeader.setSectionResizeMode(0,QtWidgets.QHeaderView.Fixed) 
 
         # Address Header
         horizontalHeader.resizeSection(1,bitness*4-bitness//2+5)
@@ -187,19 +411,21 @@ class StackContainer(QtWidgets.QWidget):
         horizontalHeader.setSectionResizeMode(2,QtWidgets.QHeaderView.Fixed) 
 
 
+        horizontalHeader.resizeSection(3,600)
 
-        horizontalHeader.resizeSection(3,55)
-        horizontalHeader.resizeSection(4,60)
+        horizontalHeader.resizeSection(4,55)
+        horizontalHeader.resizeSection(5,60)
 
 
         # Description Header
-        horizontalHeader.resizeSection(5, 300)
-        horizontalHeader.setSectionResizeMode(5,QtWidgets.QHeaderView.Stretch) 
+        horizontalHeader.resizeSection(6, 300)
+        horizontalHeader.setSectionResizeMode(6,QtWidgets.QHeaderView.Stretch) 
 
 
 
         # 设置行表头高度并隐藏列表头
         verticalheader = self.table_widget.verticalHeader()
+        verticalheader.setMaximumSectionSize(27)  
         verticalheader.setMinimumSectionSize(27)  
         verticalheader.setDefaultSectionSize(27)  
         verticalheader.setVisible(False)
@@ -224,6 +450,8 @@ class StackContainer(QtWidgets.QWidget):
         self.table_widget.itemSelectionChanged.connect(self.highlight_selected_line)
 
 
+
+
         # 创建一个垂直布局
         self.hbox = QtWidgets.QVBoxLayout()
         self.hbox.setContentsMargins(0, 0, 0, 0)
@@ -243,8 +471,7 @@ class StackContainer(QtWidgets.QWidget):
             }}
             QHeaderView::section {{    /* 表头元素 */
                 background-color: {QHEADER_BACKGROUND_COLOR};             
-                border: none;  /* 移除表格的外部边框 */
-                margin:0px;
+                margin:1px;
             }}                    
             QHeaderView::section:hover{{   /* 指针悬停表头元素 */
                 background-color: {QHEADER_BACKGROUND_COLOR_HOVER}; 
@@ -301,12 +528,12 @@ class StackContainer(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
 
         # 添加菜单项
-        action1 = QtWidgets.QAction('Action 1', self)
+        action1 = QtWidgets.QAction('Refresh Window', self)
         action2 = QtWidgets.QAction('Action 2', self)
         action3 = QtWidgets.QAction('Action 3', self)
 
         # 连接菜单项的触发事件
-        action1.triggered.connect(self.on_action1_triggered)
+        action1.triggered.connect(self.RefreshWindows)
         action2.triggered.connect(self.on_action2_triggered)
         action3.triggered.connect(self.on_action3_triggered)
 
@@ -319,8 +546,11 @@ class StackContainer(QtWidgets.QWidget):
         menu.exec_(pos)
 
 
-    def on_action1_triggered(self):
-        print("Action 1 triggered")
+    def RefreshWindows(self):
+        horizontalHeader = self.table_widget.horizontalHeader()
+        horizontalHeader.resizeSection(0,76)
+        horizontalHeader.resizeSection(0,75)
+
 
     def on_action2_triggered(self):
         print("Action 2 triggered")
@@ -343,12 +573,12 @@ class StackContainer(QtWidgets.QWidget):
         if not selected_items:
             return False
         
-        selected_value = selected_items[0].text()
+        selected_value = selected_items[0].GetLine()
         
         # # 高亮所有值相同的单元格
         if(selected_value != ""):
             for item in self.widget_dict:
-                if(self.widget_dict[item].text() == selected_value):
+                if(self.widget_dict[item].GetLine() == selected_value):
                     originalcolor = self.widget_dict[item].GetbgColor()
                     self.widget_dict[item].SetbgColor(0xFFFF33)
                     self.highlighting.append([item,originalcolor])
@@ -403,12 +633,21 @@ class StackContainer(QtWidgets.QWidget):
 
 
 
-    def edit_wedge(self,key = None, text = None):
+    def edit_wedge(self,key = None, text = None,color = None):
         if(key in self.widget_dict):
             item = self.widget_dict[key]
-            item.EditLine(text)
+            item.EditLine(text,color)
             return True
         return False
+    
+    def insert_wedge(self,key = None, text = None,color = None):
+        if(key in self.widget_dict):
+            item = self.widget_dict[key]
+            item.InsertText(text,color)
+            return True
+        return False
+
+
     
     def get_wedge_text(self,key = None):
         if(key in self.widget_dict):
@@ -447,7 +686,7 @@ class StackContainer(QtWidgets.QWidget):
 
 
 
-    def AddLine(self,row,Address, Value, Type = None, State = None, Description = None):
+    def AddLine(self,row,Address, Value, Meaning = None, Type = None, State = None, Description = None):
         if(Address in self.address_id):
             print("Existing address")
             return False
@@ -477,6 +716,7 @@ class StackContainer(QtWidgets.QWidget):
 
 
         value_widget = ReadOnlyLineEdit(value_str, self)
+        meaning_widget = ReadOnlyTextEdit(Meaning, self)
         type_widget = ReadOnlyLineEdit(Type, self)
         state_widget = ReadOnlyLineEdit(State, self)
         description_widget = ReadOnlyLineEdit(Description, self)
@@ -484,6 +724,7 @@ class StackContainer(QtWidgets.QWidget):
         pointer_widget.setObjectName("pointer_%X"%Address)
         address_widget.setObjectName("address_%X"%Address)
         value_widget.setObjectName("value_%X"%Address)
+        meaning_widget.setObjectName("meaning_%X"%Address)
         type_widget.setObjectName("type_%X"%Address)
         state_widget.setObjectName("state_%X"%Address)
         description_widget.setObjectName("description_%X"%Address)
@@ -492,9 +733,10 @@ class StackContainer(QtWidgets.QWidget):
         self.table_widget.setCellWidget(row, 0, pointer_widget)
         self.table_widget.setCellWidget(row, 1, address_widget)
         self.table_widget.setCellWidget(row, 2, value_widget)
-        self.table_widget.setCellWidget(row, 3, type_widget)
-        self.table_widget.setCellWidget(row, 4, state_widget)
-        self.table_widget.setCellWidget(row, 5, description_widget)
+        self.table_widget.setCellWidget(row, 3, meaning_widget)
+        self.table_widget.setCellWidget(row, 4, type_widget)
+        self.table_widget.setCellWidget(row, 5, state_widget)
+        self.table_widget.setCellWidget(row, 6, description_widget)
         for i in range(0,self.table_widget.columnCount()):
             self.table_widget.setItem(row, i, QtWidgets.QTableWidgetItem())
             item = self.table_widget.cellWidget(row,i)
@@ -512,7 +754,7 @@ class StackContainer(QtWidgets.QWidget):
     def DeleteLine(self, Address):
 
             if Address not in self.address_id:
-                print("Address not found")
+                # print("[DeleteLine] Address not found")
                 return False
             # 找到对应地址的行索引
             row_index = self.address_id.index(Address)
@@ -528,6 +770,7 @@ class StackContainer(QtWidgets.QWidget):
                 f"pointer_{Address:X}",
                 f"address_{Address:X}",
                 f"value_{Address:X}",
+                f"meaning_{Address:X}",
                 f"type_{Address:X}",
                 f"state_{Address:X}",
                 f"description_{Address:X}"
@@ -586,7 +829,7 @@ class StackContainer(QtWidgets.QWidget):
 
 
 
-    def EditItem(self,Address,Header,text):
+    def EditItem(self,Address,Header,text,color = DEFINE_LINE_COLOR):
         key = self.objname_header_dict[Header]%Address
         if(key != None):
             if(Header == 2):
@@ -598,12 +841,30 @@ class StackContainer(QtWidgets.QWidget):
                     text =  "%08X"%text
                 elif(unit_size == 2):
                     text =  "%04X"%text
-                return self.edit_wedge(key,text)
+                return self.edit_wedge(key,text,color)
 
             else:
-                return self.edit_wedge(key,text)
+                return self.edit_wedge(key,text,color)
         return False
-    
+
+    def InsertText(self,Address,Header,text,color = DEFINE_LINE_COLOR):
+        key = self.objname_header_dict[Header]%Address
+        if(key != None):
+            if(Header == 2):
+                unit_size = self.bitness // 8
+
+                if(unit_size == 8):
+                    text =  "%016X"%text
+                elif(unit_size == 4):
+                    text =  "%08X"%text
+                elif(unit_size == 2):
+                    text =  "%04X"%text
+                return self.insert_wedge(key,text,color)
+
+            else:
+                return self.insert_wedge(key,text,color)
+        return False
+
     def GetItemText(self,Address,Header):
         key = self.objname_header_dict[Header]%Address
         if(key != None):
@@ -627,7 +888,7 @@ class StackContainer(QtWidgets.QWidget):
 
     def ChangeLinebgColor(self,Address,Color):
         if Address not in self.address_id:
-            print("Address not found")
+            # print("[ChangeLinebgColor] Address not found")
             return False
         # 找到对应地址的行索引
         row_index = self.address_id.index(Address)
@@ -651,7 +912,7 @@ class StackContainer(QtWidgets.QWidget):
 
     def RolltoAddress(self,Address):
         if Address not in self.address_id:
-                print("Address not found")
+                # print("[RolltoAddress] Address not found")
                 return False
         # 找到对应地址的行索引
         row_index = self.address_id.index(Address)
@@ -664,3 +925,10 @@ class StackContainer(QtWidgets.QWidget):
             return self.address_id[0], self.address_id[len(self.address_id)-1]
         else:
             return -1,-1
+        
+
+    def EnableUpdates(self):
+        self.table_widget.setUpdatesEnabled(True)
+
+    def DisableUpdates(self):
+        self.table_widget.setUpdatesEnabled(False)

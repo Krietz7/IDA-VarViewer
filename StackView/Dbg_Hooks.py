@@ -17,9 +17,6 @@ class SecDebugHooks(idaapi.DBG_Hooks):
         idaapi.refresh_debugger_memory()
         self.callback(0)
 
-    # def dbg_process_attach(self, pid, tid, ea, name, base, size):
-    #     idaapi.refresh_debugger_memory()
-    #     self.callback(1)
 
 
 
