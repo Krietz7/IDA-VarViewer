@@ -5,6 +5,7 @@ import idc
 from PyQt5 import QtWidgets
 
 import time
+import string
 
 
 from StackView.Defines import *
@@ -39,7 +40,7 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
     def InitGUI(self):
-        self.StackContainer = StackContainer(self.Bitness)
+        self.StackContainer = StackContainer(self,self.Bitness)
 
         if(GetDbgStatus()):
             self.StackContainer.backgroundColor = DEBUG_BACKGROUND_COLOR
@@ -83,7 +84,7 @@ class Sec_Viewer(idaapi.PluginForm):
     # 初始化窗口
     def InitStackContainer(self):
 
-
+        start_time = time.time()
 
 
         if(GetDbgStatus()):
@@ -128,8 +129,11 @@ class Sec_Viewer(idaapi.PluginForm):
 
             self.StackContainer.RolltoAddress(stack_pointer_value)
             self.StackContainer.EnableUpdates()
-            self.StackContainer.RefreshWindows()
+            self.StackContainer.RefreshWindow()
 
+            
+
+        print("Init consume: {:.5f}s".format(time.time() - start_time))
 
 
 
@@ -149,7 +153,7 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
             # 如果栈顶指针大幅移动，则重置栈窗口
-            if(stack_pointer_value < start_address or stack_pointer_value > end_address):
+            if(stack_pointer_value < start_address + STACK_SIZE_ABOVE_MIN * self.bitnessSize or stack_pointer_value > end_address - STACK_SIZE_BELOW_MIN * self.bitnessSize):
                 self.InitStackContainer()
                 return
             # 如果栈顶指针减少，则向上添加新数据
@@ -229,7 +233,7 @@ class Sec_Viewer(idaapi.PluginForm):
             self.StackContainer.RolltoAddress(stack_pointer_value)
 
             self.StackContainer.EnableUpdates()
-            self.StackContainer.RefreshWindows()
+            self.StackContainer.RefreshWindow()
 
 
         print("refresh consume: {:.5f}s".format(time.time() - start_time))
@@ -252,24 +256,58 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
         COLOR_DICT = {
-            T_VALUE:T_VALUE_COLOR,
-            T_CODE:T_CODE_COLOR,
-            T_DATA:T_DATA_COLOR,
-            T_STACK:T_STACK_COLOR,
-            T_BSS:T_BSS_COLOR,
-            T_CONST:T_CONST_COLOR
+            T_VALUE:T_VALUE_SEG_COLOR,
+            T_CODE:T_CODE_SEG_COLOR,
+            T_DATA:T_DATA_SEG_COLOR,
+            T_STACK:T_STACK_SEG_COLOR,
+            T_BSS:T_BSS_SEG_COLOR,
+            T_CONST:T_CONST_SEG_COLOR
         }
 
 
 
-
+        descriptor_color = COLOR_DICT[Descriptions[0][0]]
+        self.StackContainer.ChangeEditColor(address,2,descriptor_color)
         
-        for descriptor in Descriptions:
-            if(descriptor[2] != ""):
-                self.StackContainer.InsertText(address,3,ARROW_SYMBOL,ARROW_SYMBOL_COLOR)
-                descriptor_color = COLOR_DICT[descriptor[0]]
-                self.StackContainer.InsertText(address,3,"("+descriptor[1]+")",descriptor_color)
-                self.StackContainer.InsertText(address,3,descriptor[2],descriptor_color)    
+        if(Descriptions != None):
+            if(len(Descriptions)> 1):
+                for i in range(len(Descriptions)-1):
+                    self.StackContainer.InsertText(address,3,ARROW_SYMBOL,ARROW_SYMBOL_COLOR)
+
+                    if(Descriptions[i][2] != ""):
+                        self.StackContainer.InsertText(address,3,"("+Descriptions[i][1]+")",descriptor_color)
+
+                    descriptor_color = COLOR_DICT[Descriptions[i+1][0]]
+                    self.StackContainer.InsertText(address,3,Descriptions[i][2],descriptor_color)    
+
+
+            if(Descriptions[-1][2] != ""):
+                self.StackContainer.InsertText(address,3,".",ARROW_SYMBOL_COLOR)
+
+                if(Descriptions[-1][2] != ""):
+                    self.StackContainer.InsertText(address,3,"("+Descriptions[-1][1]+")",descriptor_color)
+
+                if(Descriptions[-1][0] == T_CODE):
+                    descriptor_color = T_CODE_COLOR
+                else:
+                    descriptor_color = T_DATA_COLOR
+                self.StackContainer.InsertText(address,3,Descriptions[-1][2],descriptor_color)    
+
+
+
+
+
+
+
+
+
+
+        # for descriptor in Descriptions:
+        #     if(descriptor[2] != ""):
+        #         self.StackContainer.InsertText(address,3,ARROW_SYMBOL,ARROW_SYMBOL_COLOR)
+        #         descriptor_color = COLOR_DICT[descriptor[0]]
+        #         self.StackContainer.InsertText(address,3,"("+descriptor[1]+")",descriptor_color)
+        #         self.StackContainer.InsertText(address,3,descriptor[2],descriptor_color)    
 
 
 
@@ -280,8 +318,23 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
     # 
-    def ClickEvent():
-        pass
+    def WidgeDoubleClick(self,selected_data):
+        if(all(c in "0123456789abcdefABCDEF" for c in selected_data)):
+            selected_data = int(selected_data,16)
+            if(selected_data and idc.is_loaded(selected_data)):
+                idaapi.jumpto(selected_data)
+
+        elif(c in string.printable for c in selected_data):
+            target_addr = idc.get_name_ea(idc.BADADDR,selected_data)
+            if(target_addr != idc.BADADDR):
+                idaapi.jumpto(target_addr)
+
+
+
+
+
+
+
 
 
 

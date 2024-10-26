@@ -23,6 +23,7 @@ class CpuInfo():
     def __init__(self):
         self.procname = self.get_structure()
         self.bitness = self.get_bitness()
+        self.is_bigendianness = self.get_endianness()
         if(self.procname == "metapc"):
             self.cpu_struct =  {32:"x86",64:"x64"}[self.bitness]
 
@@ -201,7 +202,10 @@ def GetDataDescription(address,endinness,pointing_value = None):
 
 
 
-def GetValueDescription(value):
+def GetValueDescription(value, processed_addresses=None):
+    if processed_addresses is None:
+        processed_addresses = set()
+
     result = []
     global SEC_cpu_info
     if SEC_cpu_info.bitness == 32:
@@ -220,13 +224,15 @@ def GetValueDescription(value):
 
 
 
-    if(not SEC_cpu_info.bitness):
+    if(not SEC_cpu_info.is_bigendianness):
         endinness = 'little'
     else:
         endinness = 'big'
 
     # 是指针
-    if idaapi.is_loaded(value):
+    if idaapi.is_loaded(value) and value not in processed_addresses:
+        processed_addresses.add(value)
+        
         segm_type,segm_name = addressSegmentType(value)
         pointing_value = int.from_bytes(idc.get_bytes(value, pointer_size), byteorder=endinness)
         pointer_format = pointer_format_str.format(pointing_value)
@@ -267,8 +273,8 @@ def GetValueDescription(value):
             else:
                 result.append([T_CONST, segm_name, GetDataDescription(value,endinness,pointer_format)])
 
-        if(is_address):
-            result += (GetValueDescription(pointing_value))
+        if is_address and pointing_value not in processed_addresses:
+            result += GetValueDescription(pointing_value, processed_addresses)
 
 
         return result
