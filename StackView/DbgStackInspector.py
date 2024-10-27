@@ -1,4 +1,4 @@
-import idaapi,idc,ida_nalt,ida_bytes,ida_struct
+import idaapi,idc,ida_nalt,ida_bytes,ida_struct,ida_name
 
 from StackView.Defines import *
 
@@ -11,11 +11,13 @@ class CpuInfo():
     stack_registers = {
         "x86":{
             "BasePointer": "EBP",
-            "StackPointer": "ESP"
+            "StackPointer": "ESP",
+            "TwoPointer": "BPSP"
         },
         "x64":{
             "BasePointer": "RBP",
-            "StackPointer": "RSP"
+            "StackPointer": "RSP",
+            "TwoPointer": "BPSP"
         }
     }
 
@@ -60,7 +62,8 @@ def GetStackRegsName():
     
     base_pointer = stack_registers["BasePointer"]
     stack_pointer = stack_registers["StackPointer"]
-    return  base_pointer,stack_pointer
+    two_pointer = stack_registers["TwoPointer"]
+    return  base_pointer,stack_pointer,two_pointer
 
 
 # 获取调试状态
@@ -71,7 +74,7 @@ def GetDbgStatus():
 # 获取栈指针的值
 def GetStackValue():
     if(idaapi.is_debugger_on()):
-        base_pointer, stack_pointer = GetStackRegsName()
+        base_pointer, stack_pointer,two_pointer = GetStackRegsName()
         base_pointer_value = idaapi.get_reg_val(base_pointer)
         stack_pointer_value = idaapi.get_reg_val(stack_pointer)
 
@@ -130,8 +133,8 @@ def GetDataDescription(address,endinness,pointing_value = None):
 
 
     result = ""
-    if(idc.get_name(address) not in [None,""] ):
-        result += idc.get_name(address) + ": "
+    # if(idc.get_name(address) not in [None,""] ):
+    #     result += idc.get_name(address) + ": "
 
     # type
 
@@ -234,44 +237,47 @@ def GetValueDescription(value, processed_addresses=None):
         processed_addresses.add(value)
         
         segm_type,segm_name = addressSegmentType(value)
+        value_name =     ida_name.get_nice_colored_name(value,ida_name.GNCN_NOCOLOR)
+
         pointing_value = int.from_bytes(idc.get_bytes(value, pointer_size), byteorder=endinness)
         pointer_format = pointer_format_str.format(pointing_value)
 
         is_address = idaapi.is_loaded(pointing_value)
 
 
+
         if(segm_type == None):
             return [[0,"",""]]
         
         elif(segm_type == "CODE"):
-            result.append([T_CODE, segm_name, idc.GetDisasm(value)])
+            result.append([T_CODE, value_name, idc.GetDisasm(value)])
 
         elif(segm_type == "DATA"):
             if(is_address):
-                result.append([T_DATA, segm_name, pointer_format])
+                result.append([T_DATA, value_name, pointer_format])
             else:
-                result.append([T_DATA, segm_name, GetDataDescription(value,endinness,pointer_format)])
+                result.append([T_DATA, value_name, GetDataDescription(value,endinness,pointer_format)])
 
 
         elif(segm_type == "STACK"):
             if(is_address):
-                result.append([T_STACK, segm_name, pointer_format])
+                result.append([T_STACK, value_name, pointer_format])
             else:
-                result.append([T_STACK, segm_name, GetDataDescription(value,endinness,pointer_format)])
+                result.append([T_STACK, value_name, GetDataDescription(value,endinness,pointer_format)])
 
 
 
         elif(segm_type == "BSS"):
             if(is_address):
-                result.append([T_BSS, segm_name, pointer_format])
+                result.append([T_BSS, value_name, pointer_format])
             else:
-                result.append([T_BSS, segm_name, GetDataDescription(value,endinness,pointer_format)])
+                result.append([T_BSS, value_name, GetDataDescription(value,endinness,pointer_format)])
 
         elif(segm_type == "CONST"):
             if(is_address):
-                result.append([T_CONST, segm_name, pointer_format])
+                result.append([T_CONST, value_name, pointer_format])
             else:
-                result.append([T_CONST, segm_name, GetDataDescription(value,endinness,pointer_format)])
+                result.append([T_CONST, value_name, GetDataDescription(value,endinness,pointer_format)])
 
         if is_address and pointing_value not in processed_addresses:
             result += GetValueDescription(pointing_value, processed_addresses)

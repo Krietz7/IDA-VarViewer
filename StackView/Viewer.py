@@ -24,14 +24,14 @@ class Sec_Viewer(idaapi.PluginForm):
         self.Bitness = CpuInfo.get_bitness()  # 位数
         self.bitnessSize = self.Bitness // 8
 
-        self.base_pointer_name,self.stack_pointer_name = GetStackRegsName()
+        self.base_pointer_name,self.stack_pointer_name,self.two_pointer_name = GetStackRegsName()
 
-        self.CurrentTextDict = {}
-
-
+        self.CurrentTextDict = {} # 记录当前显示的文本数据，判断是否需要更新
 
 
 
+
+        # self.tmp = 0
 
 
     def OnCreate(self, form):
@@ -40,29 +40,41 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
     def InitGUI(self):
-        self.StackContainer = StackContainer(self,self.Bitness)
 
-        if(GetDbgStatus()):
-            self.StackContainer.backgroundColor = DEBUG_BACKGROUND_COLOR
-            self.StackContainer.reset_QSS()
 
 
         self.hbox = QtWidgets.QVBoxLayout()
+        self.StackContainer = StackContainer(self.parent,self.Bitness,self)
         self.hbox.setContentsMargins(0, 0, 0, 0)
         self.hbox.addWidget(self.StackContainer)
         # 设置父窗口的布局
         self.parent.setLayout(self.hbox)
         
+
+        
+        if(GetDbgStatus()):
+            self.StackContainer.backgroundColor = DEBUG_BACKGROUND_COLOR
+            self.StackContainer.reset_QSS()
+
         self.InitDbgHooks()
         self.InitStackContainer()
-
         
     def InitDbgHooks(self):
 
         def callbacks(operation):
             # 调试暂停
             if(operation == 0):
-                self.RefreshStackContainer()
+
+                # 窗口在前台显示
+                if(self.StackContainer.isVisible()):
+                    self.RefreshStackContainer()
+
+
+
+
+
+
+
 
         self.hook = SecDebugHooks(callbacks)
         self.hook.hook()
@@ -84,7 +96,7 @@ class Sec_Viewer(idaapi.PluginForm):
     # 初始化窗口
     def InitStackContainer(self):
 
-        start_time = time.time()
+        # start_time = time.time()
 
 
         if(GetDbgStatus()):
@@ -121,11 +133,20 @@ class Sec_Viewer(idaapi.PluginForm):
 
             # 标记指针
           
-            self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
-            self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
-              
-            self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
-            self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
+            if(base_pointer_value != stack_pointer_value):
+                self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
+                self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
+                
+                self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
+                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
+            else:
+                self.StackContainer.EditItem(stack_pointer_value,0,self.two_pointer_name + ">")
+                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)      
+
+
+
+
+
 
             self.StackContainer.RolltoAddress(stack_pointer_value)
             self.StackContainer.EnableUpdates()
@@ -133,7 +154,7 @@ class Sec_Viewer(idaapi.PluginForm):
 
             
 
-        print("Init consume: {:.5f}s".format(time.time() - start_time))
+        # print("Init consume: {:.5f}s".format(time.time() - start_time))
 
 
 
@@ -142,7 +163,7 @@ class Sec_Viewer(idaapi.PluginForm):
     # 更新窗口信息
     def RefreshStackContainer(self):
         
-        start_time = time.time()
+        # start_time = time.time()
 
                 
         if(GetDbgStatus()):
@@ -152,10 +173,12 @@ class Sec_Viewer(idaapi.PluginForm):
             base_pointer_value, stack_pointer_value = GetStackValue()
 
 
-            # 如果栈顶指针大幅移动，则重置栈窗口
+            # 如果栈顶指针大幅移动，则重置地址
             if(stack_pointer_value < start_address + STACK_SIZE_ABOVE_MIN * self.bitnessSize or stack_pointer_value > end_address - STACK_SIZE_BELOW_MIN * self.bitnessSize):
-                self.InitStackContainer()
-                return
+                self.StackContainer.ResetAddress(stack_pointer_value)
+                self.CurrentTextDict.clear()
+                start_address,end_address = self.StackContainer.GetAddressRange()
+
             # 如果栈顶指针减少，则向上添加新数据
             if(stack_pointer_value - start_address < STACK_SIZE_ABOVE_MAX * self.bitnessSize):
                 load_count = 0
@@ -191,22 +214,20 @@ class Sec_Viewer(idaapi.PluginForm):
                 self.StackContainer.delLineAtBegin()
 
 
-
+            # 更新当前显示的地址范围
+            start_address,end_address = self.StackContainer.GetAddressRange()
             if(start_address != -1):
-
-
-
-
-
                 # 删除旧数据
                 for current_address in range(start_address,end_address +  self.bitnessSize,  self.bitnessSize):
 
                     # 删除指针信息
                     self.StackContainer.ClearItme(current_address,0)
                     current_value = self.idcgetvalue(current_address)
-                    # 更新数据信息   
 
-                    if(self.CurrentTextDict[current_address][0] != current_value or self.CurrentTextDict[current_address][1] !=  GetValueDescription(current_value)):
+                    if((current_address not in self.CurrentTextDict) or (self.CurrentTextDict[current_address][0] != current_value) or (self.CurrentTextDict[current_address][1] !=  GetValueDescription(current_value))):                        
+                        print("edit:",current_address)
+                        
+                        
                         self.StackContainer.ClearItme(current_address,2)
                         self.StackContainer.ClearItme(current_address,3)
                         self.StackContainer.ClearItme(current_address,4)
@@ -224,11 +245,17 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
             # 重新加入指针信息            
-            self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
-            self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
-            
-            self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
-            self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
+            if(base_pointer_value != stack_pointer_value):
+                self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
+                self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
+                
+                self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
+                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
+            else:
+                self.StackContainer.EditItem(stack_pointer_value,0,self.two_pointer_name + ">")
+                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)      
+
+
 
             self.StackContainer.RolltoAddress(stack_pointer_value)
 
@@ -236,7 +263,7 @@ class Sec_Viewer(idaapi.PluginForm):
             self.StackContainer.RefreshWindow()
 
 
-        print("refresh consume: {:.5f}s".format(time.time() - start_time))
+        # print("refresh consume: {:.5f}s".format(time.time() - start_time))
 
 
 
@@ -319,6 +346,9 @@ class Sec_Viewer(idaapi.PluginForm):
 
     # 
     def WidgeDoubleClick(self,selected_data):
+        if(selected_data in [None,""]):
+            return
+        
         if(all(c in "0123456789abcdefABCDEF" for c in selected_data)):
             selected_data = int(selected_data,16)
             if(selected_data and idc.is_loaded(selected_data)):
