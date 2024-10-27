@@ -400,7 +400,7 @@ class StackContainer(QtWidgets.QWidget):
         
 
         # Format: [Pointer | Address | Value | Type | State | Description]
-        headers = ["", "Address", "Value","Description", "Type", "State", "remark"]
+        headers = ["", "Address", "Value","Description", "Type", "State", "Remark"]
         self.table_widget.setColumnCount(len(headers))
         self.objname_header_dict = {
             0  : "pointer_%X",
@@ -980,19 +980,16 @@ class StackContainer(QtWidgets.QWidget):
     def ResetLine(self,row,Address):
         if row < 0 or row >= self.table_widget.rowCount():
             return False
-        
-
-
-        
+            
         
 
         for i in range(0,self.table_widget.columnCount()):
             item = self.table_widget.cellWidget(row,i)
+
             if item != None:
                 new_objname = (self.objname_header_dict[i])%Address
 
                 self.tmp_widget_dict[new_objname] = self.widget_dict[item.objectName()]
-
 
                 item.setObjectName(new_objname)
                 item.Clear()
@@ -1015,19 +1012,16 @@ class StackContainer(QtWidgets.QWidget):
 
     def ResetAddress(self,Address):
 
-        print("start:",len(self.widget_dict))
 
 
         start_address =  Address - STACK_SIZE_ABOVE * self.bitness // 8
         self.tmp_widget_dict.clear()
         self.address_id.clear()
+
         for i in range(self.table_widget.rowCount()):
             self.ResetLine(i, start_address + i * self.bitness // 8)
             self.address_id.append(start_address + i * self.bitness // 8)
-        self.widget_dict = self.tmp_widget_dict
-
-        print("end:",len(self.widget_dict))
-
+        self.widget_dict =  dict(self.tmp_widget_dict)
 
 
         self.waittorefresh.clear()

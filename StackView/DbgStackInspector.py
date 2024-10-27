@@ -12,12 +12,15 @@ class CpuInfo():
         "x86":{
             "BasePointer": "EBP",
             "StackPointer": "ESP",
-            "TwoPointer": "BPSP"
+            "TwoPointer": "BPSP",
+            "InstructionPointer":"EIP"
         },
         "x64":{
             "BasePointer": "RBP",
             "StackPointer": "RSP",
-            "TwoPointer": "BPSP"
+            "TwoPointer": "BPSP",
+            "InstructionPointer":"RIP"
+
         }
     }
 
@@ -28,6 +31,13 @@ class CpuInfo():
         self.is_bigendianness = self.get_endianness()
         if(self.procname == "metapc"):
             self.cpu_struct =  {32:"x86",64:"x64"}[self.bitness]
+
+        if(not self.is_bigendianness):
+            self.endinness = 'little'
+        else:
+            self.endinness = 'big'
+
+
 
     @staticmethod
     def get_structure():
@@ -51,6 +61,10 @@ class CpuInfo():
         return idaapi.get_inf_structure().is_be()
 
 
+
+
+
+
 SEC_cpu_info = CpuInfo()
 
 
@@ -63,7 +77,8 @@ def GetStackRegsName():
     base_pointer = stack_registers["BasePointer"]
     stack_pointer = stack_registers["StackPointer"]
     two_pointer = stack_registers["TwoPointer"]
-    return  base_pointer,stack_pointer,two_pointer
+    instruction_pointer = stack_registers["InstructionPointer"]
+    return  base_pointer,stack_pointer,two_pointer,instruction_pointer
 
 
 # 获取调试状态
@@ -74,7 +89,7 @@ def GetDbgStatus():
 # 获取栈指针的值
 def GetStackValue():
     if(idaapi.is_debugger_on()):
-        base_pointer, stack_pointer,two_pointer = GetStackRegsName()
+        base_pointer, stack_pointer,two_pointer,InstructionPointer = GetStackRegsName()
         base_pointer_value = idaapi.get_reg_val(base_pointer)
         stack_pointer_value = idaapi.get_reg_val(stack_pointer)
 
