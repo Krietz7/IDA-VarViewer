@@ -10,7 +10,6 @@ sys.path.append("F:\\Projects\\IDA-StackAnnotation")
 #@#
 
 from StackView.Defines import *
-from StackView.StackContainer import *
 from StackView.Viewer import *
 from StackView.Dbg_Hooks import *
 

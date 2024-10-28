@@ -10,7 +10,7 @@ import string
 
 from StackView.Defines import *
 from StackView.DbgStackInspector import *
-from StackView.StackContainer import *
+from StackView.QtContainers.StackContainer import *
 from StackView.Dbg_Hooks import *
 from StackView.FunctionInfo import *
 
@@ -98,90 +98,115 @@ class Sec_Viewer(idaapi.PluginForm):
 
 
 
+    def initStackLine(self,address,is_end):
+        if(is_end):
+            self.StackContainer.addLineAtEnd(address,self.idcgetvalue(address))
+        else:
+            self.StackContainer.addLineAtBegin(address,self.idcgetvalue(address))
+
+        self.StackContainer.ChangeEditColor(address,1,STACK_ADDRESS_COLOR)
+        self.SetStaclkDescription(address,self.idcgetvalue(address))
+
+    def markStackPointer(self,base_pointer_value,stack_pointer_value):
+        
+        if(base_pointer_value != stack_pointer_value):
+            self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
+            self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
+            
+            self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
+            self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
+        else:
+            self.StackContainer.EditItem(stack_pointer_value,0,self.two_pointer_name + ">")
+            self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)      
+
+
+
+
+
+
+    def addNewDataAbove(self, stack_pointer_value, start_address):
+        if(stack_pointer_value - start_address < STACK_SIZE_ABOVE_MAX * self.bitnessSize):
+            load_count = 0
+            for current_address in range(start_address - self.bitnessSize,
+                                        stack_pointer_value - (STACK_SIZE_ABOVE_MAX + 1) * self.bitnessSize,\
+                                        - self.bitnessSize):
+                load_count += 1
+                if(load_count >= ONCE_LOAD_SIZE):
+                    break
+                current_value = self.idcgetvalue(current_address)
+                self.initStackLine(current_address,False)
+
+
+
+    def addNewDataBelow(self, stack_pointer_value, end_address):
+        if end_address - stack_pointer_value < STACK_SIZE_BELOW_MAX * self.bitnessSize:
+            load_count = 0
+            for current_address in range(end_address + self.bitnessSize,\
+                                        stack_pointer_value + (STACK_SIZE_BELOW_MAX + 1) * self.bitnessSize,\
+                                        self.bitnessSize):
+                load_count += 1
+                if load_count >= ONCE_LOAD_SIZE:
+                    break
+                self.initStackLine(current_address, True)
+
+
+    def updateDisplayContent(self, start_address, end_address):
+        if(start_address != None):
+            # 删除旧数据
+            for current_address in range(start_address,end_address +  self.bitnessSize,  self.bitnessSize):
+                # 删除指针信息
+                self.StackContainer.ClearItme(current_address,0)
+                current_value = self.idcgetvalue(current_address)
+                if((current_address not in self.CurrentTextDict) or (self.CurrentTextDict[current_address][0] != current_value) or (self.CurrentTextDict[current_address][1] !=  GetValueDescription(current_value))):                        
+                    self.StackContainer.ClearItme(current_address,2)
+                    self.StackContainer.ClearItme(current_address,3)
+                    self.StackContainer.EditItem(current_address,2,self.idcgetvalue(current_address))
+                    self.SetStaclkDescription(current_address,current_value)
+
     # 初始化窗口
     def InitStackContainer(self):
-
         # start_time = time.time()
-
-
         if(GetDbgStatus()):
-
             self.StackContainer.DisableUpdates()
-
             self.StackContainer.ClearAllLines()
 
             try:
                 base_pointer_value, stack_pointer_value = GetStackValue()
             except:
+                # 程序处于暂停状态，停止初始化
                 self.StackContainer.EnableUpdates()
                 return
             
             # 以当前的的栈顶地址为基准开始初始化
-            self.StackContainer.addLineAtEnd(stack_pointer_value,self.idcgetvalue(stack_pointer_value))
-            self.StackContainer.ChangeEditColor(stack_pointer_value,1,STACK_ADDRESS_COLOR)
-            self.SetStaclkDescription(stack_pointer_value,self.idcgetvalue(stack_pointer_value))
-
-
+            self.initStackLine(stack_pointer_value,True)
             # 从栈顶向上加入数据
             for i in range(1,STACK_SIZE_ABOVE):
                 current_address = stack_pointer_value - (i * self.bitnessSize)
-                current_value = self.idcgetvalue(current_address)
-                self.StackContainer.addLineAtBegin(None,current_value)
-                self.StackContainer.ChangeEditColor(current_address,1,STACK_ADDRESS_COLOR)
-                self.SetStaclkDescription(current_address,current_value)
-
-
+                self.initStackLine(current_address,False)
             # 从栈顶向下加入数据
             for i in range(1,STACK_SIZE_BELOW):
                 current_address = stack_pointer_value + (i * self.bitnessSize)
-                current_value = self.idcgetvalue(current_address)
-                self.StackContainer.addLineAtEnd(None,current_value)
-                self.StackContainer.ChangeEditColor(current_address,1,STACK_ADDRESS_COLOR)
-                self.SetStaclkDescription(current_address,current_value)
-            
+                self.initStackLine(current_address,True)
 
             # 标记指针
-          
-            if(base_pointer_value != stack_pointer_value):
-                self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
-                self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
-                
-                self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
-                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
-            else:
-                self.StackContainer.EditItem(stack_pointer_value,0,self.two_pointer_name + ">")
-                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)      
-
-
-
-
-
-
+            self.markStackPointer(base_pointer_value,stack_pointer_value)
+            
             self.StackContainer.RolltoAddress(stack_pointer_value)
             self.StackContainer.EnableUpdates()
             self.StackContainer.RefreshWindow()
 
+            # 标记初始化完成
             self.InitSuccess = True
-            
-
         # print("Init consume: {:.5f}s".format(time.time() - start_time))
-
-
-
-
 
     # 更新窗口信息
     def RefreshStackContainer(self):
-        
         # start_time = time.time()
-
-                
         if(GetDbgStatus()):
             self.StackContainer.DisableUpdates()
 
-            start_address,end_address = self.StackContainer.GetAddressRange()
-
             try:
+                start_address,end_address = self.StackContainer.GetAddressRange()
                 base_pointer_value, stack_pointer_value = GetStackValue()
             except:
                 self.StackContainer.EnableUpdates()
@@ -193,87 +218,47 @@ class Sec_Viewer(idaapi.PluginForm):
                 self.CurrentTextDict.clear()
                 start_address,end_address = self.StackContainer.GetAddressRange()
 
-            # 如果栈顶指针减少，则向上添加新数据
-            if(stack_pointer_value - start_address < STACK_SIZE_ABOVE_MAX * self.bitnessSize):
-                load_count = 0
-                for current_address in range(start_address - self.bitnessSize,stack_pointer_value - (STACK_SIZE_ABOVE_MAX + 1) * self.bitnessSize, - self.bitnessSize):
-                    load_count += 1
-                    if(load_count >= ONCE_LOAD_SIZE):
-                        break
-                    current_value = self.idcgetvalue(current_address)
-                    self.StackContainer.addLineAtBegin(None,current_value)
-                    self.StackContainer.ChangeEditColor(current_address,1,STACK_ADDRESS_COLOR)
-                    self.SetStaclkDescription(current_address,current_value)
 
-            
+            # 如果栈顶指针减少，则向上添加新数据
+            self.addNewDataAbove(stack_pointer_value, start_address)
             # 如果栈顶指针增大，则向下添加新数据
-            if(end_address - stack_pointer_value < STACK_SIZE_BELOW_MAX * self.bitnessSize):
-                load_count = 0
-                for current_address in range(end_address + self.bitnessSize, stack_pointer_value + (STACK_SIZE_BELOW_MAX + 1) * self.bitnessSize, self.bitnessSize):
-                    load_count += 1
-                    if(load_count >= ONCE_LOAD_SIZE):
-                        break
-                    current_value = self.idcgetvalue(current_address)
-                    self.StackContainer.addLineAtEnd(None,current_value)
-                    self.StackContainer.ChangeEditColor(current_address,1,STACK_ADDRESS_COLOR)
-                    self.SetStaclkDescription(current_address,current_value)
+            self.addNewDataBelow(stack_pointer_value, end_address)
 
             # 如果数据过大，删除超出限制的数据
             lines_to_delete = (max((stack_pointer_value - start_address) // self.bitnessSize - STACK_SIZE_ABOVE_MAX, 0)) % 20
             for _ in range(lines_to_delete):
                 self.StackContainer.delLineAtEnd()
 
-
             lines_to_delete = (max((end_address - stack_pointer_value) // self.bitnessSize - STACK_SIZE_BELOW_MAX, 0)) % 20
             for _ in range(lines_to_delete):
                 self.StackContainer.delLineAtBegin()
 
-
             # 更新当前显示的地址范围
             start_address,end_address = self.StackContainer.GetAddressRange()
             self.RefreshCurrentTextDict(start_address,end_address)
-            if(start_address != -1):
-                # 删除旧数据
-                for current_address in range(start_address,end_address +  self.bitnessSize,  self.bitnessSize):
-
-                    # 删除指针信息
-                    self.StackContainer.ClearItme(current_address,0)
-                    current_value = self.idcgetvalue(current_address)
-
-                    if((current_address not in self.CurrentTextDict) or (self.CurrentTextDict[current_address][0] != current_value) or (self.CurrentTextDict[current_address][1] !=  GetValueDescription(current_value))):                        
-                        
-                        self.StackContainer.ClearItme(current_address,2)
-                        self.StackContainer.ClearItme(current_address,3)
-
-                        self.StackContainer.EditItem(current_address,2,self.idcgetvalue(current_address))
-                        self.SetStaclkDescription(current_address,current_value)
+            self.updateDisplayContent(start_address,end_address)
 
             # 重新加入指针信息            
-            if(base_pointer_value != stack_pointer_value):
-                self.StackContainer.EditItem(base_pointer_value,0,self.base_pointer_name + "->")
-                self.StackContainer.ChangeEditColor(base_pointer_value,0,STACK_POINTS_REGS_COLOR)
-                
-                self.StackContainer.EditItem(stack_pointer_value,0,self.stack_pointer_name + "->")
-                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)
-            else:
-                self.StackContainer.EditItem(stack_pointer_value,0,self.two_pointer_name + ">")
-                self.StackContainer.ChangeEditColor(stack_pointer_value,0,STACK_POINTS_REGS_COLOR)      
-
-
+            self.markStackPointer(base_pointer_value,stack_pointer_value)
 
             self.StackContainer.RolltoAddress(stack_pointer_value)
-
             self.StackContainer.EnableUpdates()
             self.StackContainer.RefreshWindow()
-
-
         # print("refresh consume: {:.5f}s".format(time.time() - start_time))
 
 
 
 
+
+
+
+
+
+
+
     def RefreshCurrentTextDict(self,start_address,end_address):
-        tmp_dict =  {address: Descriptions for address, Descriptions in self.CurrentTextDict.items() if start_address <= address <= end_address}
+        tmp_dict = {address: Descriptions for address, Descriptions in self.CurrentTextDict.items() \
+                    if start_address <= address <= end_address}
         self.CurrentTextDict = dict(tmp_dict)
  
 
@@ -375,7 +360,7 @@ class Sec_Viewer(idaapi.PluginForm):
                         self.StackContainer.EditItem(current_address,4,remark_text)
                         self.StackContainer.ChangeEditColor(current_address,4,STACK_RETURN_REMARK_COLOR)
                     elif(stkvar_dict[current_address][0] == " s"):
-                        remark_text = "Func " +  func_name + " Func Base Address"
+                        remark_text = "Func " +  func_name + " Base Address"
                         self.StackContainer.EditItem(current_address,4,remark_text)
                         self.StackContainer.ChangeEditColor(current_address,4,STACK_BASE_REMARK_COLOR)
 
