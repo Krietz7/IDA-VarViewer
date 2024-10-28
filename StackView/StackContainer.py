@@ -400,16 +400,16 @@ class StackContainer(QtWidgets.QWidget):
         
 
         # Format: [Pointer | Address | Value | Type | State | Description]
-        headers = ["", "Address", "Value","Description", "Type", "State", "Remark"]
+        headers = ["", "Address", "Value","Description", "Remark", "Type", "State"]
         self.table_widget.setColumnCount(len(headers))
         self.objname_header_dict = {
             0  : "pointer_%X",
             1  : "address_%X",
             2  : "value_%X",
             3  : "description_%X",
-            4  : "type_%X",
+            4  : "remark_%X",
             5  : "state_%X",
-            6  : "remark_%X",
+            6  : "type_%X",
         }
         self.table_widget.setHorizontalHeaderLabels(headers)
 
@@ -432,16 +432,15 @@ class StackContainer(QtWidgets.QWidget):
         horizontalHeader.resizeSection(2,bitness*4-bitness//2+5)
         horizontalHeader.setSectionResizeMode(2,QtWidgets.QHeaderView.Fixed) 
 
-
+        # Description Header
         horizontalHeader.resizeSection(3,1000)
 
-        horizontalHeader.resizeSection(4,55)
+        horizontalHeader.resizeSection(4,500)
+
         horizontalHeader.resizeSection(5,60)
-
-
-        # Description Header
-        horizontalHeader.resizeSection(6, 300)
-        horizontalHeader.setSectionResizeMode(6,QtWidgets.QHeaderView.Stretch) 
+        horizontalHeader.setSectionResizeMode(5,QtWidgets.QHeaderView.Fixed) 
+        horizontalHeader.resizeSection(6, 60)
+        horizontalHeader.setSectionResizeMode(6,QtWidgets.QHeaderView.Fixed) 
 
 
 
@@ -755,26 +754,26 @@ class StackContainer(QtWidgets.QWidget):
 
         value_widget = ReadOnlyLineEdit(value_str, self)
         description_widget = ReadOnlyTextEdit(Meaning, self)
+        remark_widget = ReadOnlyLineEdit(Description, self)
         type_widget = ReadOnlyLineEdit(Type, self)
         state_widget = ReadOnlyLineEdit(State, self)
-        remark_widget = ReadOnlyLineEdit(Description, self)
 
         pointer_widget.setObjectName("pointer_%X"%Address)
         address_widget.setObjectName("address_%X"%Address)
         value_widget.setObjectName("value_%X"%Address)
         description_widget.setObjectName("description_%X"%Address)
+        remark_widget.setObjectName("remark_%X"%Address)
         type_widget.setObjectName("type_%X"%Address)
         state_widget.setObjectName("state_%X"%Address)
-        remark_widget.setObjectName("remark_%X"%Address)
         # 将小部件添加到表格中
         
         self.table_widget.setCellWidget(row, 0, pointer_widget)
         self.table_widget.setCellWidget(row, 1, address_widget)
         self.table_widget.setCellWidget(row, 2, value_widget)
         self.table_widget.setCellWidget(row, 3, description_widget)
-        self.table_widget.setCellWidget(row, 4, type_widget)
+        self.table_widget.setCellWidget(row, 4, remark_widget)
         self.table_widget.setCellWidget(row, 5, state_widget)
-        self.table_widget.setCellWidget(row, 6, remark_widget)
+        self.table_widget.setCellWidget(row, 6, type_widget)
         for i in range(0,self.table_widget.columnCount()):
             item = self.table_widget.cellWidget(row,i)
             if item != None:
@@ -825,7 +824,7 @@ class StackContainer(QtWidgets.QWidget):
     ''' *args: Value, Type = None, State = None, Description = None '''
     def addLineAtBegin(self,Address = None,*args):
         if(len(self.address_id) == 0 and Address == None):
-            print("Please give a base address")
+            idaapi.error("Error, Please reinitialize the window")
             return False
         elif(len(self.address_id) != 0):
             target_addr = self.address_id[0] - self.bitness // 8
@@ -846,7 +845,7 @@ class StackContainer(QtWidgets.QWidget):
 
     def addLineAtEnd(self,Address = None,*args):
         if(len(self.address_id) == 0 and Address == None):
-            print("Please give a base address")
+            idaapi.error("Error, Please reinitialize the window")
             return False
         elif(len(self.address_id) != 0):
             target_addr = self.address_id[self.table_widget.rowCount()-1] + self.bitness // 8

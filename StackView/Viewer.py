@@ -26,6 +26,8 @@ class Sec_Viewer(idaapi.PluginForm):
         self.endinness = SEC_cpu_info.endinness
         self.base_pointer_name,self.stack_pointer_name,self.two_pointer_name,self.instruction_pointer_name = GetStackRegsName()
 
+        self.InitSuccess = False
+
         self.CurrentTextDict = {} # 记录当前显示的文本数据，判断是否需要更新
         self.FunctionInfoDict = {}
 
@@ -56,6 +58,7 @@ class Sec_Viewer(idaapi.PluginForm):
             self.StackContainer.reset_QSS()
 
         self.InitDbgHooks()
+        
         if(GetDbgStatus()):
             self.InitStackContainer()
             self.SetRemark()
@@ -66,11 +69,15 @@ class Sec_Viewer(idaapi.PluginForm):
         def callbacks(operation):
             # 调试暂停
             if(operation == 0):
-
+                if(not self.InitSuccess):
+                    self.InitStackContainer()
+                    
                 # 窗口在前台显示
-                if(self.StackContainer.isVisible()):
+                elif(self.StackContainer.isVisible() and self.InitSuccess):
+                    
                     self.RefreshStackContainer()
                     self.SetRemark()
+                    self.StackContainer.RefreshWindow()
 
 
 
@@ -103,8 +110,12 @@ class Sec_Viewer(idaapi.PluginForm):
 
             self.StackContainer.ClearAllLines()
 
-            base_pointer_value, stack_pointer_value = GetStackValue()
-
+            try:
+                base_pointer_value, stack_pointer_value = GetStackValue()
+            except:
+                self.StackContainer.EnableUpdates()
+                return
+            
             # 以当前的的栈顶地址为基准开始初始化
             self.StackContainer.addLineAtEnd(stack_pointer_value,self.idcgetvalue(stack_pointer_value))
             self.StackContainer.ChangeEditColor(stack_pointer_value,1,STACK_ADDRESS_COLOR)
@@ -150,6 +161,7 @@ class Sec_Viewer(idaapi.PluginForm):
             self.StackContainer.EnableUpdates()
             self.StackContainer.RefreshWindow()
 
+            self.InitSuccess = True
             
 
         # print("Init consume: {:.5f}s".format(time.time() - start_time))
@@ -168,8 +180,12 @@ class Sec_Viewer(idaapi.PluginForm):
             self.StackContainer.DisableUpdates()
 
             start_address,end_address = self.StackContainer.GetAddressRange()
-            base_pointer_value, stack_pointer_value = GetStackValue()
 
+            try:
+                base_pointer_value, stack_pointer_value = GetStackValue()
+            except:
+                self.StackContainer.EnableUpdates()
+                return
 
             # 如果栈顶指针大幅移动，则重置地址
             if(stack_pointer_value < start_address + STACK_SIZE_ABOVE_MIN * self.bitnessSize or stack_pointer_value > end_address - STACK_SIZE_BELOW_MIN * self.bitnessSize):
@@ -203,12 +219,12 @@ class Sec_Viewer(idaapi.PluginForm):
                     self.SetStaclkDescription(current_address,current_value)
 
             # 如果数据过大，删除超出限制的数据
-            lines_to_delete = max((stack_pointer_value - start_address) // self.bitnessSize - STACK_SIZE_ABOVE_MAX, 0)
+            lines_to_delete = (max((stack_pointer_value - start_address) // self.bitnessSize - STACK_SIZE_ABOVE_MAX, 0)) % 20
             for _ in range(lines_to_delete):
                 self.StackContainer.delLineAtEnd()
 
 
-            lines_to_delete = max((end_address - stack_pointer_value) // self.bitnessSize - STACK_SIZE_BELOW_MAX, 0)
+            lines_to_delete = (max((end_address - stack_pointer_value) // self.bitnessSize - STACK_SIZE_BELOW_MAX, 0)) % 20
             for _ in range(lines_to_delete):
                 self.StackContainer.delLineAtBegin()
 
@@ -333,8 +349,12 @@ class Sec_Viewer(idaapi.PluginForm):
     def SetStkVarRemark(self,stkvar_base_addr = None):
         start_address,end_address = self.StackContainer.GetAddressRange()
         
-        ip_reg_value = idaapi.get_reg_val(self.instruction_pointer_name)
-        sp_reg_value = idaapi.get_reg_val(self.stack_pointer_name)
+        try:
+            ip_reg_value = idaapi.get_reg_val(self.instruction_pointer_name)
+            sp_reg_value = idaapi.get_reg_val(self.stack_pointer_name)
+        except:
+            return 
+
 
         func = ida_funcs.get_fchunk(ip_reg_value)
         func_name = ida_funcs.get_func_name(ip_reg_value)
@@ -342,29 +362,38 @@ class Sec_Viewer(idaapi.PluginForm):
 
         stkvar_base_addr = GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,self.Bitness,self.endinness)
         if(stkvar_base_addr != None):
-            stkvar_dict = GetstkvarAddress(func,stkvar_base_addr)
+            stkvar_dict = GetstkvarAddress(func,stkvar_base_addr,self.bitnessSize)
 
             for current_address in range(start_address,end_address,self.bitnessSize):
                 if(current_address < sp_reg_value):
-                    self.StackContainer.ClearItme(current_address,6)
+                    self.StackContainer.ClearItme(current_address,4)
                     continue    
-                elif(current_address not in stkvar_dict):
-                    continue
-                else:
+                elif(current_address in stkvar_dict):
+
                     if(stkvar_dict[current_address][0] == " r"):
                         remark_text = "Func " +  func_name + " Return Address"
-                        self.StackContainer.EditItem(current_address,6,remark_text)
-                        self.StackContainer.ChangeEditColor(current_address,6,STACK_RETURN_REMARK_COLOR)
+                        self.StackContainer.EditItem(current_address,4,remark_text)
+                        self.StackContainer.ChangeEditColor(current_address,4,STACK_RETURN_REMARK_COLOR)
                     elif(stkvar_dict[current_address][0] == " s"):
                         remark_text = "Func " +  func_name + " Func Base Address"
-                        self.StackContainer.EditItem(current_address,6,remark_text)
-                        self.StackContainer.ChangeEditColor(current_address,6,STACK_BASE_REMARK_COLOR)
+                        self.StackContainer.EditItem(current_address,4,remark_text)
+                        self.StackContainer.ChangeEditColor(current_address,4,STACK_BASE_REMARK_COLOR)
 
                     else:
-                        remark_text = "(" + func_name +")" +  stkvar_dict[current_address][0]  # + "(size: " + str(stkvar_dict[current_address][1]) + ")"
-                        self.StackContainer.EditItem(current_address,6,remark_text)
-                        self.StackContainer.ChangeEditColor(current_address,6,STACK_VARIBLE_REMARK_COLOR)
+                        if(len(stkvar_dict[current_address]) == 3):
+                            remark_text = "(" + func_name +")" +  stkvar_dict[current_address][0]  # + "(size: " + str(stkvar_dict[current_address][1]) + ")"
+                            self.StackContainer.EditItem(current_address,4,remark_text)
+                            self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
+                        else:
+                            self.StackContainer.ClearItme(current_address,4)
+                            for i in range(0,len(stkvar_dict[current_address]),3):
+                                remark_text = stkvar_dict[current_address][i+0] + "(" + hex(stkvar_dict[current_address][i+2]) + " size: " + str(stkvar_dict[current_address][i+1]) + ")"
+                                self.StackContainer.InsertText(current_address,4,remark_text)
+                                self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
 
+                    
+                else:
+                    continue
 
 
 

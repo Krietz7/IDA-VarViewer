@@ -5,6 +5,47 @@ import ida_frame
 import ida_struct
 import ida_dbg
 import ida_idd
+import ida_funcs
+import ida_typeinf
+import ida_hexrays
+
+TypeDict = {
+    ida_typeinf.BT_SEGREG: "segment register",
+    ida_typeinf.BT_UNK_BYTE: "1 byte",
+    ida_typeinf.BT_UNK_WORD: "2 bytes",
+    ida_typeinf.BT_UNK_DWORD: "4 bytes",
+    ida_typeinf.BT_UNK_QWORD: "8 bytes",
+    ida_typeinf.BT_UNK_OWORD: "16 bytes",
+    ida_typeinf.BT_UNKNOWN: "unknown size - for parameters",
+    ida_typeinf.BTF_BYTE: "byte",
+    ida_typeinf.BTF_UNK: "unknown",
+    ida_typeinf.BTF_VOID: "void",
+    ida_typeinf.BTF_INT8: "int8",
+    ida_typeinf.BTF_CHAR: "char",
+    ida_typeinf.BTF_UCHAR: "unsigned char",
+    ida_typeinf.BTF_UINT8: "uint8",
+    ida_typeinf.BTF_INT16: "int16",
+    ida_typeinf.BTF_UINT16: "uint16",
+    ida_typeinf.BTF_INT32: "int32",
+    ida_typeinf.BTF_UINT32: "uint32",
+    ida_typeinf.BTF_INT64: "int64",
+    ida_typeinf.BTF_UINT64: "uint64",
+    ida_typeinf.BTF_INT128: "int128",
+    ida_typeinf.BTF_UINT128: "uint128",
+    ida_typeinf.BTF_INT: "int",
+    ida_typeinf.BTF_UINT: "uint",
+    ida_typeinf.BTF_SINT: "sint",
+    ida_typeinf.BTF_BOOL: "bool",
+    ida_typeinf.BTF_FLOAT: "float",
+    ida_typeinf.BTF_DOUBLE: "double",
+    ida_typeinf.BTF_LDOUBLE: "long double",
+    ida_typeinf.BTF_TBYTE: "tbyte",
+    ida_typeinf.BTF_STRUCT: "struct",
+    ida_typeinf.BTF_UNION: "union",
+    ida_typeinf.BTF_ENUM: "enum",
+    ida_typeinf.BTF_TYPEDEF: "typedef",
+}
+
 
 # 函数信息
 
@@ -15,11 +56,8 @@ import ida_idd
 
 
 
-# 获取返回地址作为基址
-# func = ida_funcs.get_fchunk(ip_reg_value)
-# frame = ida_frame.get_frame(ip_reg_value)
 
-# 获取返回地址作为基址
+# 获取执行call指令后的栈顶地址作为基址
 def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness):
 
     pointer_size = bitness // 8
@@ -59,16 +97,13 @@ def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness):
     if(return_ea != None):
         addr_bytes = idc.get_bytes(func_base_addr,pointer_size)
 
-        print(hex(return_ea))
-        print(hex(int.from_bytes(addr_bytes, byteorder = endinness)))
-
         if(return_ea == int.from_bytes(addr_bytes, byteorder = endinness)):
             return func_base_addr
     return None
 
 
-
-def GetstkvarAddress(func,func_base_addr):
+# 通过基址获取所有栈变量
+def GetstkvarAddress(func,func_base_addr,bitnessSize):
     stkvar_dict = {}
 
     frame = func.frame    
@@ -87,8 +122,80 @@ def GetstkvarAddress(func,func_base_addr):
                 offset = mptr.soff
                 # typeinfo = ida_struct.get_member_tinfo(mptr.id)
 
-                addr = func_base_addr - lvar_base_addr + offset
-                stkvar_dict[addr] = [name,size]
+                addr = (func_base_addr - lvar_base_addr + offset) - (func_base_addr - lvar_base_addr + offset) % bitnessSize
+                if(addr not in stkvar_dict):
+                    stkvar_dict[addr] = [name,size,addr]
+                else:
+                    stkvar_dict[addr] += [name,size,func_base_addr - lvar_base_addr + offset]
     return stkvar_dict
+
+
+
+# reg: mreg_t  width: int   return: str
+# 按照mreg_t和长度得到寄存器名称
+def GetRegName(reg,width):
+    rlist = ida_hexrays.rlist_t(reg,width)
+    regname = rlist.dstr()
+    return regname
+
+
+# struct: <class 'ida_typeinf.tinfo_t'>   return: str or None(fail)
+# 使用字典查找typeinf类型对应的数据类型名
+def GetSturctName(struct):
+    type = struct.get_realtype()
+    if(type in TypeDict.keys()):
+        return type
+    else:
+        return None
+    
+# 根据函数对象获取其lvar变量 及所在位置
+def GetFuncLocationVarAt(f):
+    cfunc = ida_hexrays.decompile(f)
+    lvars = cfunc.lvars
+
+    stk_var_list = []
+    reg1_var_list = []
+    reg2_var_list = []
+
+    for var in lvars:
+        if(var.used):
+            var_name = var.name
+            var_size = var.width
+            var_type = var.tif
+
+            # 该变量属于栈变量
+            if(var.is_stk_var and var.get_stkoff() > 0 ):
+                off = var.get_stkoff()
+                stk_var_list.append([var_name, var_size, var_type,off])
+
+            # 该变量属于寄存器变量
+            elif(var.is_reg_var):
+                # 由单个寄存器保存
+                if(var.is_reg1 and var.get_reg2() == 0):
+                    Reg1 = var.get_reg1() # mreg_t
+                    print(Reg1)
+                    reg1_var_list.append([var_name, var_size, var_type,Reg1])
+
+
+                # 由两个寄存器保存
+                elif(var.is_reg2 and var.get_reg2() != 0):
+                    Reg1 = var.get_reg1()
+                    Reg2 = var.get_reg2()
+                    reg2_var_list.append([var_name, var_size, var_type, [Reg1, Reg2]])
+                    pass
+
+            # 变量是否分散
+            elif(var.is_scattered):
+                var.get_scattered
+                pass
+
+
+    return [stk_var_list,reg1_var_list,reg2_var_list]
+
+
+
+
+
+
 
 

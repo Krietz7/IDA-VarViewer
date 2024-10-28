@@ -90,10 +90,15 @@ def GetDbgStatus():
 def GetStackValue():
     if(idaapi.is_debugger_on()):
         base_pointer, stack_pointer,two_pointer,InstructionPointer = GetStackRegsName()
-        base_pointer_value = idaapi.get_reg_val(base_pointer)
-        stack_pointer_value = idaapi.get_reg_val(stack_pointer)
+        
+        try:
+            base_pointer_value = idaapi.get_reg_val(base_pointer)
+            stack_pointer_value = idaapi.get_reg_val(stack_pointer)
 
-        return base_pointer_value,stack_pointer_value
+            return base_pointer_value,stack_pointer_value
+        except:
+            return None
+
     else:
         print("Not in debuging")
         return None
@@ -151,10 +156,14 @@ def GetDataDescription(address,endinness,pointing_value = None):
     # if(idc.get_name(address) not in [None,""] ):
     #     result += idc.get_name(address) + ": "
 
+    
+
+    # string
+    if(idc.is_strlit(data_type_flag) or idc.get_strlit_contents(address) != None):
+        return result + "("+str(idc.get_strlit_contents(address))+")"  
+    
     # type
-
-
-    if(idc.is_byte(data_type_flag)):
+    elif(idc.is_byte(data_type_flag)):
         if(data_size == 1):
             return result + NumberConversion("Byte",data_value,endinness)
         elif(data_size > 1):
@@ -177,9 +186,6 @@ def GetDataDescription(address,endinness,pointing_value = None):
             return result + NumberConversion("Word",data_value,endinness)
         elif(data_size > 8):
             return result + "[" + NumberConversion("Qword",data_value,endinness) + suffix + "]"
-    # string
-    elif(idc.is_strlit(data_type_flag) or idc.get_strlit_contents(address) != None):
-        return result + "("+str(idc.get_strlit_contents(address))+")"  
 
     elif(idc.is_struct(data_type_flag)):
         buf = ida_nalt.opinfo_t()
