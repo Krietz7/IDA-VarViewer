@@ -8,6 +8,58 @@ from StackView.QtContainers.ReadOnlyLineEdit import ReadOnlyLineEdit
 from StackView.QtContainers.ReadOnlyTextEdit import ReadOnlyTextEdit
 
 
+
+
+class TemporaryTextEdit(QtWidgets.QTextEdit):
+    def __init__(self, text=None, parent=None,bgcolor=None,linecolor=None):
+        super(TemporaryTextEdit, self).__init__(text,parent)
+        self.table_parent = parent
+        self.setGeometry(300, 300, 400, 200)
+        self.setReadOnly(True)
+        self.setFont(QtGui.QFont(TEXT_FONT, TEXT_FONT_SIZE))
+        self.setStyleSheet(f"""selection-color:{TEXT_SELECTED_COLOR};
+                                    selection-background-color:{TEXT_SELECTED_BACKGROUND_COLOR};
+                                    border: none;background-color: {bgcolor};color: {linecolor}""")
+    
+
+    def mouseDoubleClickEvent(self, event):
+        super().mouseDoubleClickEvent(event)
+        cursor = self.textCursor()
+        if (cursor.hasSelection() and hasattr(self.table_parent,"WidgeDoubleClick")):
+            selected_text = cursor.selectedText()
+            self.table_parent.WidgeDoubleClick(selected_text)
+
+    def contextMenuEvent(self, event):
+        pass
+
+    # 保持箭头光标样式
+    def enterEvent(self, event):
+        self.viewport().setCursor(QtCore.Qt.ArrowCursor) 
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.viewport().setCursor(QtCore.Qt.ArrowCursor) 
+        super().leaveEvent(event)
+
+
+
+
+class TemporaryItemViewer(QtWidgets.QMainWindow):
+    def __init__(self, parent, item):
+        super().__init__(parent)
+        self.setWindowTitle(item.objectName())
+        self.setGeometry(300, 300, 400, 200)
+
+        # 创建一个中心部件并设置布局
+        central_widget = QtWidgets.QWidget(self)
+        layout = QtWidgets.QVBoxLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(item)
+
+        # 设置中心部件
+        self.setCentralWidget(central_widget)
+
+
 class StackContainer(QtWidgets.QWidget):
     def __init__(self,parent,bitness=64,parent_viewer = None):
         super(StackContainer,self).__init__(parent)
@@ -77,7 +129,7 @@ class StackContainer(QtWidgets.QWidget):
         horizontalHeader.resizeSection(5,60)
         horizontalHeader.setSectionResizeMode(5,QtWidgets.QHeaderView.Fixed) 
         horizontalHeader.resizeSection(6, 60)
-        horizontalHeader.setSectionResizeMode(6,QtWidgets.QHeaderView.Fixed) 
+        horizontalHeader.setSectionResizeMode(6,QtWidgets.QHeaderView.Interactive) 
 
 
         # 设置行表头高度并隐藏列表头
@@ -181,21 +233,28 @@ class StackContainer(QtWidgets.QWidget):
         self.show_context_menu(self.mapToGlobal(event.pos()))
 
 
-    def show_context_menu(self, pos):
+    def show_context_menu(self, pos, item = None):
         # 创建上下文菜单
         menu = QtWidgets.QMenu(self)
 
         # 添加菜单项
         action1 = QtWidgets.QAction('Refresh Window', self)
         action2 = QtWidgets.QAction('Reinitialize the window', self)
+        action3 = QtWidgets.QAction('Show The Item', self)
 
         # 连接菜单项的触发事件
         action1.triggered.connect(self.RefreshWindow)
         action2.triggered.connect(self.ReinitializeWindows)
+        action3.triggered.connect(lambda: self.ShowTheItem(item))
+
+        if(item == None):
+            action3.setEnabled(False)
 
         # 添加菜单项到菜单
         menu.addAction(action1)
         menu.addAction(action2)
+        menu.addSeparator()
+        menu.addAction(action3)
 
         # 显示菜单
         menu.exec_(pos)
@@ -215,7 +274,19 @@ class StackContainer(QtWidgets.QWidget):
         self.parent_viewer.InitStackContainer()
 
 
+    def ShowTheItem(self,item):
+        tmp_text_edit = TemporaryTextEdit(None,self,self.backgroundColor,item.linecolor)
+        if(isinstance(item,ReadOnlyTextEdit)):
+            text = item.toHtml()
+            tmp_text_edit.setHtml(text)
 
+        elif(isinstance(item,ReadOnlyLineEdit)):
+            text = item.text()
+            tmp_text_edit.setPlainText(text)
+
+        itemviewer = TemporaryItemViewer(self,tmp_text_edit)
+        itemviewer.show()  
+        
 
 
 
@@ -533,7 +604,7 @@ class StackContainer(QtWidgets.QWidget):
         self.change_line_color(row_index,Color)
 
 
-    def ClearItme(self,Address,Header):
+    def ClearItem(self,Address,Header):
         key = self.objname_header_dict[Header]%Address
         if(key != None):
             return self.clear_wedge(key)

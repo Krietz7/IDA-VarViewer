@@ -10,11 +10,10 @@ sys.path.append("F:\\Projects\\IDA-StackAnnotation")
 #@#
 
 from StackView.Defines import *
-from StackView.Viewer import *
-from StackView.Dbg_Hooks import *
+from StackView.StackViewer import *
+from StackView.VariableViewer import *
 
-
-class Sec_MenuContext(idaapi.action_handler_t):
+class MenuContext(idaapi.action_handler_t):
 
     @classmethod
     def get_name(self):
@@ -44,11 +43,20 @@ class Sec_MenuContext(idaapi.action_handler_t):
         return idaapi.AST_ENABLE_ALWAYS
 
 
-class SecStackMenu(Sec_MenuContext):
+class StackViewer_Menu(MenuContext):
     @classmethod
     def activate(self,ctx):
-        k = Sec_Viewer()
-        k.Show(WIDGET_TITLE)
+        k = StackViewer()
+        k.Show("Stack Viewer")
+
+
+class VariableViewer_Menu(MenuContext):
+    @classmethod
+    def activate(self,ctx):
+        k = VariableViewer()
+        k.Show("Variable Viewer")
+
+
 
 
 
@@ -85,23 +93,26 @@ class StackInfo(idaapi.plugin_t):
 
     def init(self):
         
-        try:
-            # 注册函数Hook
-            register_dbg_hook()
 
-            # 注册菜单
-            SecStackMenu.register(self, "Open Stack View")
+        # 注册菜单
+        StackViewer_Menu.register(self, "Open Stack View")
+        VariableViewer_Menu.register(self, "Open Variable View")
 
-            # 注册菜单项到IDA的调试窗口中
-            idaapi.attach_action_to_menu("Debugger/Debugger windows/StackMenu", SecStackMenu.get_name(), idaapi.SETMENU_APP)
-            
-        except:
-            pass
+        # 注册菜单项到IDA的调试窗口中
+        idaapi.attach_action_to_menu("Debugger/Debugger windows/Stack Viewer", StackViewer_Menu.get_name(), idaapi.SETMENU_APP)
+        idaapi.attach_action_to_menu("Debugger/Debugger windows/Variable Viewer", VariableViewer_Menu.get_name(), idaapi.SETMENU_APP)
+        
+        # except:
+        #     pass
         return idaapi.PLUGIN_OK
 
     def run(self,arg):
-        k = Sec_Viewer()
-        k.Show(WIDGET_TITLE)
+        # k = StackViewer()
+        # k.Show(WIDGET_TITLE)
+
+        t = VariableViewer()
+        t.Show(WIDGET_TITLE)
+
         pass
 
 

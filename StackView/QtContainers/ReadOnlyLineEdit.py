@@ -73,13 +73,14 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
         global_pos = self.mapToGlobal(event.pos())
         # 调用表格的右键菜单显示方法
         if(hasattr(self.table_parent,"show_context_menu")):
-            self.table_parent.show_context_menu(global_pos)
+            self.table_parent.show_context_menu(global_pos,self)
 
     # 双击事件：发送被双击的文本到父控件
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
         current_text = self.text()
-        self.table_parent.WidgeDoubleClick(current_text)
+        if(hasattr(self.table_parent,"WidgeDoubleClick")):
+            self.table_parent.WidgeDoubleClick(current_text)
         
     # 更新文本框宽度
     def __adjust_line_edit_width(self,):
@@ -98,10 +99,10 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
 
     # 设置样式
     def __set_style(self):
-        super(ReadOnlyLineEdit, self).setStyleSheet(f"border-left: 2px solid;selection-color:{TEXT_SELECTED_COLOR};selection-background-color:{TEXT_SELECTED_BACKGROUND_COLOR};border: none;background-color: {self.linebgcolor};color: {self.linecolor}")
+        super(ReadOnlyLineEdit, self).setStyleSheet(f"""border-left: 2px solid;selection-color:{TEXT_SELECTED_COLOR};
+                                                    selection-background-color:{TEXT_SELECTED_BACKGROUND_COLOR};
+                                                    border: none;background-color: {self.linebgcolor};color: {self.linecolor}""")
 
-
-    # 公用方法
     def EditLine(self, text,color=None):
         self.blockSignals(True)
         self.setText(text)

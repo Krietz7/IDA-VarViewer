@@ -18,9 +18,9 @@ from StackView.FunctionInfo import *
 
 
 
-class Sec_Viewer(idaapi.PluginForm):
+class StackViewer(idaapi.PluginForm):
     def __init__(self):
-        super(Sec_Viewer, self).__init__()    # 初始化父类
+        super(StackViewer, self).__init__()    # 初始化父类
         self.Bitness = SEC_cpu_info.bitness  # 位数
         self.bitnessSize = self.Bitness // 8
         self.endinness = SEC_cpu_info.endinness
@@ -30,7 +30,7 @@ class Sec_Viewer(idaapi.PluginForm):
 
         self.CurrentTextDict = {} # 记录当前显示的文本数据，判断是否需要更新
         self.FunctionInfoDict = {}
-
+        self.StackvarDict = {}
 
 
 
@@ -61,8 +61,7 @@ class Sec_Viewer(idaapi.PluginForm):
         
         if(GetDbgStatus()):
             self.InitStackContainer()
-            self.SetRemark()
-
+            self.StackContainer.RefreshWindow()
 
     def InitDbgHooks(self):
 
@@ -155,11 +154,11 @@ class Sec_Viewer(idaapi.PluginForm):
             # 删除旧数据
             for current_address in range(start_address,end_address +  self.bitnessSize,  self.bitnessSize):
                 # 删除指针信息
-                self.StackContainer.ClearItme(current_address,0)
+                self.StackContainer.ClearItem(current_address,0)
                 current_value = self.idcgetvalue(current_address)
                 if((current_address not in self.CurrentTextDict) or (self.CurrentTextDict[current_address][0] != current_value) or (self.CurrentTextDict[current_address][1] !=  GetValueDescription(current_value))):                        
-                    self.StackContainer.ClearItme(current_address,2)
-                    self.StackContainer.ClearItme(current_address,3)
+                    self.StackContainer.ClearItem(current_address,2)
+                    self.StackContainer.ClearItem(current_address,3)
                     self.StackContainer.EditItem(current_address,2,self.idcgetvalue(current_address))
                     self.SetStaclkDescription(current_address,current_value)
 
@@ -188,12 +187,16 @@ class Sec_Viewer(idaapi.PluginForm):
                 current_address = stack_pointer_value + (i * self.bitnessSize)
                 self.initStackLine(current_address,True)
 
+            self.SetRemark()
+
+
             # 标记指针
             self.markStackPointer(base_pointer_value,stack_pointer_value)
             
             self.StackContainer.RolltoAddress(stack_pointer_value)
             self.StackContainer.EnableUpdates()
             self.StackContainer.RefreshWindow()
+
 
             # 标记初始化完成
             self.InitSuccess = True
@@ -322,10 +325,24 @@ class Sec_Viewer(idaapi.PluginForm):
 
     def SetRemark(self):
         self.SetStkVarRemark()
+        sp_reg_value = idaapi.get_reg_val(self.stack_pointer_name)
+        self.RefreshStackvarDict(sp_reg_value)
+
+
+        if(self.StackvarDict != None):
+            for current_address in self.StackvarDict.keys():
+                remark_text,color = self.StackvarDict[current_address]
+                self.StackContainer.EditItem(current_address,4,remark_text)
+                self.StackContainer.ChangeEditColor(current_address,4,color)
 
 
 
-
+    def RefreshStackvarDict(self,start_address):
+        if(self.StackvarDict != None):
+            tmp_dict = {address: remark for address, remark in self.StackvarDict.items() \
+                        if start_address <= address}
+            if(tmp_dict != None):
+                self.StackvarDict = dict(tmp_dict)
 
 
 
@@ -351,30 +368,34 @@ class Sec_Viewer(idaapi.PluginForm):
 
             for current_address in range(start_address,end_address,self.bitnessSize):
                 if(current_address < sp_reg_value):
-                    self.StackContainer.ClearItme(current_address,4)
+                    self.StackContainer.ClearItem(current_address,4)
                     continue    
                 elif(current_address in stkvar_dict):
 
                     if(stkvar_dict[current_address][0] == " r"):
                         remark_text = "Func " +  func_name + " Return Address"
-                        self.StackContainer.EditItem(current_address,4,remark_text)
-                        self.StackContainer.ChangeEditColor(current_address,4,STACK_RETURN_REMARK_COLOR)
+                        self.StackvarDict[current_address] = [remark_text,STACK_RETURN_REMARK_COLOR]
+                        # self.StackContainer.EditItem(current_address,4,remark_text)
+                        # self.StackContainer.ChangeEditColor(current_address,4,STACK_RETURN_REMARK_COLOR)
                     elif(stkvar_dict[current_address][0] == " s"):
                         remark_text = "Func " +  func_name + " Base Address"
-                        self.StackContainer.EditItem(current_address,4,remark_text)
-                        self.StackContainer.ChangeEditColor(current_address,4,STACK_BASE_REMARK_COLOR)
+                        self.StackvarDict[current_address] = [remark_text,STACK_RETURN_REMARK_COLOR]
+                        # self.StackContainer.EditItem(current_address,4,remark_text)
+                        # self.StackContainer.ChangeEditColor(current_address,4,STACK_BASE_REMARK_COLOR)
 
                     else:
                         if(len(stkvar_dict[current_address]) == 3):
                             remark_text = "(" + func_name +")" +  stkvar_dict[current_address][0]  # + "(size: " + str(stkvar_dict[current_address][1]) + ")"
-                            self.StackContainer.EditItem(current_address,4,remark_text)
-                            self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
+                            self.StackvarDict[current_address] = [remark_text,STACK_VARIBLE_REMARK_COLOR]
+                            # self.StackContainer.EditItem(current_address,4,remark_text)
+                            # self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
                         else:
-                            self.StackContainer.ClearItme(current_address,4)
+                            self.StackContainer.ClearItem(current_address,4)
                             for i in range(0,len(stkvar_dict[current_address]),3):
                                 remark_text = stkvar_dict[current_address][i+0] + "(" + hex(stkvar_dict[current_address][i+2]) + " size: " + str(stkvar_dict[current_address][i+1]) + ")"
-                                self.StackContainer.InsertText(current_address,4,remark_text)
-                                self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
+                                self.StackvarDict[current_address] = [remark_text,STACK_VARIBLE_REMARK_COLOR]
+                                # self.StackContainer.InsertText(current_address,4,remark_text)
+                                # self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
 
                     
                 else:

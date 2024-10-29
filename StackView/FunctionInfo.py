@@ -58,7 +58,7 @@ TypeDict = {
 
 
 # 获取执行call指令后的栈顶地址作为基址
-def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness):
+def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness,trace_depth = 0):
 
     pointer_size = bitness // 8
 
@@ -89,8 +89,8 @@ def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness):
     tid = ida_dbg.get_current_thread()
     trace = ida_idd.call_stack_t()
     return_ea = None
-    if (ida_dbg.collect_stack_trace(tid, trace) and len(trace) > 1):
-        frame = trace[1]
+    if (ida_dbg.collect_stack_trace(tid, trace) and len(trace) > trace_depth):
+        frame = trace[trace_depth + 1]
         return_ea = frame.callea
 
     # 检查基址的下一地址是否为返回地址
@@ -173,7 +173,6 @@ def GetFuncLocationVarAt(f):
                 # 由单个寄存器保存
                 if(var.is_reg1 and var.get_reg2() == 0):
                     Reg1 = var.get_reg1() # mreg_t
-                    print(Reg1)
                     reg1_var_list.append([var_name, var_size, var_type,Reg1])
 
 

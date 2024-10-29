@@ -133,14 +133,14 @@ class ReadOnlyTextEdit(QtWidgets.QTextEdit):
     def contextMenuEvent(self, event):
         global_pos = self.mapToGlobal(event.pos())
         if(hasattr(self.table_parent,"show_context_menu")):
-            self.table_parent.show_context_menu(global_pos)
+            self.table_parent.show_context_menu(global_pos,self)
 
     # 双击事件：发送被双击的文本到父控件
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
         
         cursor = self.textCursor()
-        if cursor.hasSelection():
+        if (cursor.hasSelection() and hasattr(self.table_parent,"WidgeDoubleClick")):
             selected_text = cursor.selectedText()
             self.table_parent.WidgeDoubleClick(selected_text)
 
