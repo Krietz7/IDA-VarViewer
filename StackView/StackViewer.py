@@ -375,28 +375,22 @@ class StackViewer(idaapi.PluginForm):
                     if(stkvar_dict[current_address][0] == " r"):
                         remark_text = "Func " +  func_name + " Return Address"
                         self.StackvarDict[current_address] = [remark_text,STACK_RETURN_REMARK_COLOR]
-                        # self.StackContainer.EditItem(current_address,4,remark_text)
-                        # self.StackContainer.ChangeEditColor(current_address,4,STACK_RETURN_REMARK_COLOR)
+
                     elif(stkvar_dict[current_address][0] == " s"):
                         remark_text = "Func " +  func_name + " Base Address"
                         self.StackvarDict[current_address] = [remark_text,STACK_RETURN_REMARK_COLOR]
-                        # self.StackContainer.EditItem(current_address,4,remark_text)
-                        # self.StackContainer.ChangeEditColor(current_address,4,STACK_BASE_REMARK_COLOR)
 
                     else:
                         if(len(stkvar_dict[current_address]) == 3):
                             remark_text = "(" + func_name +")" +  stkvar_dict[current_address][0]  # + "(size: " + str(stkvar_dict[current_address][1]) + ")"
                             self.StackvarDict[current_address] = [remark_text,STACK_VARIBLE_REMARK_COLOR]
-                            # self.StackContainer.EditItem(current_address,4,remark_text)
-                            # self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
+
                         else:
                             self.StackContainer.ClearItem(current_address,4)
+                            remark_text = ""
                             for i in range(0,len(stkvar_dict[current_address]),3):
-                                remark_text = stkvar_dict[current_address][i+0] + "(" + hex(stkvar_dict[current_address][i+2]) + " size: " + str(stkvar_dict[current_address][i+1]) + ")"
+                                remark_text += stkvar_dict[current_address][i+0] + "(" + hex(stkvar_dict[current_address][i+2]) + " size: " + str(stkvar_dict[current_address][i+1]) + ")"
                                 self.StackvarDict[current_address] = [remark_text,STACK_VARIBLE_REMARK_COLOR]
-                                # self.StackContainer.InsertText(current_address,4,remark_text)
-                                # self.StackContainer.ChangeEditColor(current_address,4,STACK_VARIBLE_REMARK_COLOR)
-
                     
                 else:
                     continue

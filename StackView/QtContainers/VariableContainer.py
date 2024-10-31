@@ -19,13 +19,13 @@ class VariableContainer(QtWidgets.QWidget):
         # 设置表头
         self.tree_widget.setHeaderHidden(False)  
         self.tree_widget.setColumnCount(5)  
-        self.tree_widget.setHeaderLabels(['Name', 'Type', 'Value','Description', 'Address'])
+        self.tree_widget.setHeaderLabels(['Name', 'Type', 'Value','Address', 'Remark'])
         horizontalHeader = self.tree_widget.horizontalScrollBar()
         
-        self.tree_widget.setColumnWidth(0, 300)
-        self.tree_widget.setColumnWidth(1, 100)
-        self.tree_widget.setColumnWidth(2, 200)
-        self.tree_widget.setColumnWidth(3, 300)
+        self.tree_widget.setColumnWidth(0, 400)
+        self.tree_widget.setColumnWidth(1, 250)
+        self.tree_widget.setColumnWidth(2, 300)
+        self.tree_widget.setColumnWidth(3, 450)
         self.tree_widget.setColumnWidth(4, 200)
 
 
@@ -51,28 +51,31 @@ class VariableContainer(QtWidgets.QWidget):
 
     def init_tree(self):
         self.reset_QSS()
+        self.tree_widget.setAlternatingRowColors(True)
 
        
     def reset_QSS(self):
         
-        self.tree_widget.setStyleSheet(f"""            
+        self.tree_widget.setStyleSheet(f"""    
             QTreeWidget {{
+                alternate-background-color: {DEBUG_BACKGROUND_LINE_COLOR2};
                 background-color: {self.backgroundcolor};
+            }}
+            QTreeView QHeaderView::section{{
+                background:{QHEADER_BACKGROUND_COLOR};
+                height:30px;
+                border: none;
             }}
             QTreeView::item {{
                 height: 27px;
             }}
             QTreeWidget::item:selected {{
-                background-color: {TRANSPARENT};
-                color: black;
+                background-color: {SELECTED_ITEM_BACKGROUND_COLOR};
                 border: none;
             }}
-            QTreeWidget::item:hover {{
-                background-color: {TRANSPARENT};
-                color: black;  /* 鼠标悬停时的文字颜色 */
-                border: none;
-            }}                                                             
-            """)
+            """)                             
+
+
 
     def contextMenuEvent(self, event):
         self.show_context_menu(self.mapToGlobal(event.pos()))
@@ -112,7 +115,26 @@ class VariableContainer(QtWidgets.QWidget):
             expand_recursively(top_level_item)
 
 
+    def fold_all_nodes(self):
+        def fold_recursively(item):
+            item.setExpanded(False)
+            for i in range(item.childCount()):
+                child = item.child(i)
+                fold_recursively(child)
 
+        # 遍历顶级项并递归地折叠所有子节点
+        for i in range(self.tree_widget.topLevelItemCount()):
+            top_level_item = self.tree_widget.topLevelItem(i)
+            fold_recursively(top_level_item)
+
+
+
+    def RefreshWindow(self):
+        for edit in self.waittorefresh:
+            edit.Refresh()
+        self.waittorefresh.clear()
+        self.tree_widget.setColumnWidth(0, 299)
+        self.tree_widget.setColumnWidth(0, 300)
 
     # 添加顶层项目到树中
     # itemID: 父项在父项列表中的唯一标识符
@@ -163,7 +185,7 @@ class VariableContainer(QtWidgets.QWidget):
         return True
 
 
-    def add_variable_line(self, topitemID, parentitemID, Varname, Type=None, value=None, Description=None, Address=None):
+    def add_variable_line(self, topitemID, parentitemID, Varname, Type=None, value=None, Address=None, Remark=None, Color=None):
         if(topitemID not in self.topItemsDict.keys()):
             return False # 该父项在顶级列表中不存在
         elif(parentitemID not in self.topItemsDict[topitemID][1]):
@@ -179,9 +201,10 @@ class VariableContainer(QtWidgets.QWidget):
 
 
         
-
-        Editlist = [ReadOnlyLineEdit(Varname,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyTextEdit(Description,self), ReadOnlyLineEdit(Address,self), ]  
-        ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_DESC_COLOR,VAR_ADDR_COLOR]
+        Editlist = [ReadOnlyLineEdit(Varname,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyTextEdit(Address,self), ReadOnlyLineEdit(Remark,self)]  
+        ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_ADDR_COLOR,VAR_REMARK_COLOR]
+        if(Color != None):
+            ColorList[0] = Color
         self.waittorefresh += Editlist
 
         for i in range(len(Editlist)):
@@ -210,6 +233,8 @@ class VariableContainer(QtWidgets.QWidget):
 
         targetedit.EditLine(Text,color)
         targetedit.Refresh()
+        self.waittorefresh.append(targetedit)
+        
 
     def InsertVaribleInfo(self, topitemID, parentitemID, Varname, Header, Text, color=None):
         if(topitemID not in self.topItemsDict.keys()):
@@ -222,6 +247,7 @@ class VariableContainer(QtWidgets.QWidget):
 
         targetedit.InsertText(Text,color)
         targetedit.Refresh()
+        self.waittorefresh.append(targetedit)
 
     def RemoveFunc(self,topitemID, parentitemID):
         if(topitemID not in self.topItemsDict.keys()):
@@ -235,8 +261,3 @@ class VariableContainer(QtWidgets.QWidget):
         self.topItemsDict[topitemID][1].pop(parentitemID)  # [parentitemID][0]
         return True
 
-
-    def RefreshWindow(self):
-        for edit in self.waittorefresh:
-            edit.Refresh()
-        self.waittorefresh.clear()

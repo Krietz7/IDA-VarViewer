@@ -144,6 +144,14 @@ class ReadOnlyTextEdit(QtWidgets.QTextEdit):
             selected_text = cursor.selectedText()
             self.table_parent.WidgeDoubleClick(selected_text)
 
+    def __scroll_to_start(self):
+        """将 QTextEdit 滚动到最左侧"""
+        cursor = self.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.Start)
+        self.setTextCursor(cursor)
+        self.ensureCursorVisible()  # 确保光标可见
+
+
     def __adjust_line_edit_width(self):
         font = self.font()
         font_metrics = QtGui.QFontMetrics(font)
@@ -227,3 +235,4 @@ class ReadOnlyTextEdit(QtWidgets.QTextEdit):
     def Refresh(self):
         self.__set_style()
         self.__adjust_line_edit_width()
+        self.__scroll_to_start()

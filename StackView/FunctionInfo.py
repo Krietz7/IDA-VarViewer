@@ -92,12 +92,13 @@ def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness,trace_
     if (ida_dbg.collect_stack_trace(tid, trace) and len(trace) > trace_depth):
         frame = trace[trace_depth + 1]
         return_ea = frame.callea
+        return_ea_next_addr = idc.find_code(return_ea,1)
 
     # 检查基址的下一地址是否为返回地址
     if(return_ea != None):
         addr_bytes = idc.get_bytes(func_base_addr,pointer_size)
-
-        if(return_ea == int.from_bytes(addr_bytes, byteorder = endinness)):
+        addr_int =  int.from_bytes(addr_bytes, byteorder = endinness)
+        if(return_ea == addr_int or return_ea_next_addr == addr_int):
             return func_base_addr
     return None
 
@@ -131,22 +132,7 @@ def GetstkvarAddress(func,func_base_addr,bitnessSize):
 
 
 
-# reg: mreg_t  width: int   return: str
-# 按照mreg_t和长度得到寄存器名称
-def GetRegName(reg,width):
-    rlist = ida_hexrays.rlist_t(reg,width)
-    regname = rlist.dstr()
-    return regname
 
-
-# struct: <class 'ida_typeinf.tinfo_t'>   return: str or None(fail)
-# 使用字典查找typeinf类型对应的数据类型名
-def GetSturctName(struct):
-    type = struct.get_realtype()
-    if(type in TypeDict.keys()):
-        return type
-    else:
-        return None
     
 # 根据函数对象获取其lvar变量 及所在位置
 def GetFuncLocationVarAt(f):

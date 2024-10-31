@@ -81,7 +81,12 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
         current_text = self.text()
         if(hasattr(self.table_parent,"WidgeDoubleClick")):
             self.table_parent.WidgeDoubleClick(current_text)
-        
+    
+    def __scroll_to_start(self):
+        """将 QLineEdit 滚动到最左侧"""
+        self.setCursorPosition(0)
+
+
     # 更新文本框宽度
     def __adjust_line_edit_width(self,):
         # 获取当前字体
@@ -138,4 +143,4 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
     def Refresh(self):
         self.__set_style()
         self.__adjust_line_edit_width()
-
+        self.__scroll_to_start()

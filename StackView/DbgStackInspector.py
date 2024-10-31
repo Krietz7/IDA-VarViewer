@@ -28,6 +28,7 @@ class CpuInfo():
     def __init__(self):
         self.procname = self.get_structure()
         self.bitness = self.get_bitness()
+        self.bitnessSize = self.bitness // 8
         self.is_bigendianness = self.get_endianness()
         if(self.procname == "metapc"):
             self.cpu_struct =  {32:"x86",64:"x64"}[self.bitness]
