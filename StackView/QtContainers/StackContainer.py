@@ -3,10 +3,9 @@ import idaapi
 from PyQt5 import QtWidgets,QtGui,Qt,QtCore
 from PyQt5.QtCore import Qt
 
-from StackView.Defines import *
+from StackView.Config import *
 from StackView.QtContainers.ReadOnlyLineEdit import ReadOnlyLineEdit
 from StackView.QtContainers.ReadOnlyTextEdit import ReadOnlyTextEdit
-
 
 
 
@@ -90,7 +89,7 @@ class StackContainer(QtWidgets.QWidget):
 
         # 设置表格的行数和列数
         # Format: [Pointer | Address | Value | Type | State | Description]
-        headers = ["", "Address", "Value","Description", "Remark", "Type", "State"]
+        headers = ["", "Address", "Value","Description", "Remark"]
         self.table_widget.setColumnCount(len(headers))
         self.objname_header_dict = {
             0  : "pointer_%X",
@@ -98,8 +97,6 @@ class StackContainer(QtWidgets.QWidget):
             2  : "value_%X",
             3  : "description_%X",
             4  : "remark_%X",
-            5  : "state_%X",
-            6  : "type_%X",
         }
         self.table_widget.setHorizontalHeaderLabels(headers)
 
@@ -124,12 +121,11 @@ class StackContainer(QtWidgets.QWidget):
 
         # Description Header
         horizontalHeader.resizeSection(3,1000)
+        horizontalHeader.setSectionResizeMode(3,QtWidgets.QHeaderView.Interactive) 
 
+        # Remark Header
         horizontalHeader.resizeSection(4,600)
-        horizontalHeader.resizeSection(5,60)
-        horizontalHeader.setSectionResizeMode(5,QtWidgets.QHeaderView.Fixed) 
-        horizontalHeader.resizeSection(6, 60)
-        horizontalHeader.setSectionResizeMode(6,QtWidgets.QHeaderView.Interactive) 
+        horizontalHeader.setSectionResizeMode(4,QtWidgets.QHeaderView.Stretch) 
 
 
         # 设置行表头高度并隐藏列表头
@@ -226,6 +222,7 @@ class StackContainer(QtWidgets.QWidget):
     # 在控件显示时刷新
     def showEvent(self, event):
         self.parent_viewer.RefreshStackContainer()
+        self.RefreshWindow()
         super().showEvent(event) 
 
     # 显示右键菜单
@@ -242,10 +239,23 @@ class StackContainer(QtWidgets.QWidget):
         action2 = QtWidgets.QAction('Reinitialize the window', self)
         action3 = QtWidgets.QAction('Show The Item', self)
 
+        action4 = QtWidgets.QAction('Follow in SP', self)
+        action5 = QtWidgets.QAction('Follow in BP', self)
+
+        action6 = QtWidgets.QAction('Reset Size', self)
+
+
         # 连接菜单项的触发事件
         action1.triggered.connect(self.RefreshWindow)
         action2.triggered.connect(self.ReinitializeWindows)
         action3.triggered.connect(lambda: self.ShowTheItem(item))
+
+        action4.triggered.connect(self.FollowInSP)
+        action5.triggered.connect(self.FollowInBP)
+
+        action6.triggered.connect(self.ResetSize)
+
+
 
         if(item == None):
             action3.setEnabled(False)
@@ -255,6 +265,11 @@ class StackContainer(QtWidgets.QWidget):
         menu.addAction(action2)
         menu.addSeparator()
         menu.addAction(action3)
+        menu.addSeparator()
+        menu.addAction(action4)
+        menu.addAction(action5)
+        menu.addSeparator()
+        menu.addAction(action6)
 
         # 显示菜单
         menu.exec_(pos)
@@ -287,6 +302,27 @@ class StackContainer(QtWidgets.QWidget):
         itemviewer = TemporaryItemViewer(self,tmp_text_edit)
         itemviewer.show()  
         
+
+    def FollowInSP(self):
+        self.ClearhighlightingItem()
+        if(hasattr(self.parent_viewer,"FollowInSP")):
+            self.parent_viewer.FollowInSP()
+    
+
+
+
+    def FollowInBP(self):
+        self.ClearhighlightingItem()
+        if(hasattr(self.parent_viewer,"FollowInBP")):
+            self.parent_viewer.FollowInBP()
+    
+    def ResetSize(self):
+        self.ClearhighlightingItem()
+        if(hasattr(self.parent_viewer,"ResetSize")):
+            self.parent_viewer.ResetSize()
+
+
+
 
 
 
@@ -339,6 +375,8 @@ class StackContainer(QtWidgets.QWidget):
         if(self.highlightingAddress >= 0 and self.highlightingAddress in self.address_id):
             self.change_line_color(self.address_id.index(self.highlightingAddress), self.originalhighlightingAddressColor)
             self.originalhighlightingAddressColor.clear()
+            self.highlightingAddress = -1
+
 
         select_line = self.table_widget.currentRow()
         self.highlightingAddress = self.address_id[select_line]
@@ -414,6 +452,8 @@ class StackContainer(QtWidgets.QWidget):
     def AddLine(self,row,Address, Value, Meaning = None, Type = None, State = None, Description = None):
         if(Address in self.address_id):
             return False
+        elif(Address < 0):
+            return False
         
         self.address_id.insert(row, Address)
 
@@ -440,16 +480,14 @@ class StackContainer(QtWidgets.QWidget):
         value_widget = ReadOnlyLineEdit(value_str, self)
         description_widget = ReadOnlyTextEdit(Meaning, self)
         remark_widget = ReadOnlyLineEdit(Description, self)
-        type_widget = ReadOnlyLineEdit(Type, self)
-        state_widget = ReadOnlyLineEdit(State, self)
+
 
         pointer_widget.setObjectName("pointer_%X"%Address)
         address_widget.setObjectName("address_%X"%Address)
         value_widget.setObjectName("value_%X"%Address)
         description_widget.setObjectName("description_%X"%Address)
         remark_widget.setObjectName("remark_%X"%Address)
-        type_widget.setObjectName("type_%X"%Address)
-        state_widget.setObjectName("state_%X"%Address)
+
 
         # 将小部件添加到表格中
         self.table_widget.setCellWidget(row, 0, pointer_widget)
@@ -457,8 +495,6 @@ class StackContainer(QtWidgets.QWidget):
         self.table_widget.setCellWidget(row, 2, value_widget)
         self.table_widget.setCellWidget(row, 3, description_widget)
         self.table_widget.setCellWidget(row, 4, remark_widget)
-        self.table_widget.setCellWidget(row, 5, state_widget)
-        self.table_widget.setCellWidget(row, 6, type_widget)
         for i in range(0,self.table_widget.columnCount()):
             item = self.table_widget.cellWidget(row,i)
             if item != None:
@@ -507,6 +543,8 @@ class StackContainer(QtWidgets.QWidget):
             target_addr = self.address_id[0] - self.bitness // 8
         else:
             target_addr = Address
+        if(target_addr < 0):
+            return False
 
         self.scrollrow(1)
         return self.AddLine(0,target_addr, *args)
@@ -528,6 +566,8 @@ class StackContainer(QtWidgets.QWidget):
             target_addr = self.address_id[self.table_widget.rowCount()-1] + self.bitness // 8
         elif(Address != None):
             target_addr = Address
+        if(target_addr < 0):
+            return False
         return self.AddLine(self.table_widget.rowCount(),target_addr, *args)
 
     def delLineAtEnd(self):
@@ -671,12 +711,32 @@ class StackContainer(QtWidgets.QWidget):
                     item.setText(address_str)
         return True
 
+    def ClearhighlightingItem(self):
+        if(self.highlightingAddress >= 0 and self.highlightingAddress in self.address_id):
+            self.change_line_color(self.address_id.index(self.highlightingAddress), self.originalhighlightingAddressColor)
+            self.originalhighlightingAddressColor.clear()
+            self.highlightingAddress = -1
+
+        if(self.highlighting != []):
+            for items in self.highlighting:
+                if(items[0] in self.widget_dict):
+                    item = self.widget_dict[items[0]]
+                    item.SetbgColor(items[1])
+                    self.waittorefresh.append(item)
+            self.highlighting.clear()
+
+
+
+
+
+
     # 重设整个窗口的地址
-    def ResetAddress(self,Address):
+    def ResetAddress(self,Address,above_address):
+        self.ClearhighlightingItem()
 
-
-
-        start_address =  Address - STACK_SIZE_ABOVE * self.bitness // 8
+        start_address =  Address - above_address * self.bitness // 8
+        if(start_address <0):
+            start_address = 0
         self.tmp_widget_dict.clear()
         self.address_id.clear()
 

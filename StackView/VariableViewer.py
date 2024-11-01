@@ -1,6 +1,7 @@
 import idaapi
 import idc
 
+from StackView.Config import *
 
 from PyQt5 import QtWidgets
 
@@ -8,12 +9,7 @@ import time
 import string
 import uuid
 
-#@#
-import sys
-sys.path.append("F:\\Projects\\IDA-StackAnnotation")
-#@#
 
-from StackView.Defines import *
 from StackView.DbgStackInspector import *
 from StackView.QtContainers.VariableContainer import *
 from StackView.Dbg_Hooks import *

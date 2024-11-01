@@ -3,7 +3,7 @@ import ida_hexrays
 
 from StackView.DbgStackInspector import *
 from StackView.Dbg_Hooks import *
-from StackView.Defines import *
+
 
 import struct
 

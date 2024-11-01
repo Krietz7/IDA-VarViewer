@@ -2,9 +2,10 @@
 from PyQt5 import QtWidgets,QtGui,Qt,QtCore
 from PyQt5.QtCore import Qt
 
+from StackView.Config import *
 
 
-from StackView.Defines import *
+
 
 
 class ReadOnlyLineEdit(QtWidgets.QLineEdit):

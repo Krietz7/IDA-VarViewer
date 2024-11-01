@@ -9,6 +9,8 @@ import ida_funcs
 import ida_typeinf
 import ida_hexrays
 
+from StackView.Config import *
+
 TypeDict = {
     ida_typeinf.BT_SEGREG: "segment register",
     ida_typeinf.BT_UNK_BYTE: "1 byte",
@@ -71,7 +73,7 @@ def GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,bitness,endinness,trace_
     frame = func.frame
 
     # 分析开始条件：栈帧分析完毕    栈帧使用了栈基址寄存器   不存在特殊的栈帧用法   
-    if not (func_flags & ida_funcs.FUNC_FRAME) or  ( func_flags & ida_funcs.FUNC_FUZZY_SP):
+    if ((not (func_flags & ida_funcs.FUNC_FRAME) or  ( func_flags & ida_funcs.FUNC_FUZZY_SP)) and (not ANALYTICS_FUZZY_SP)):
         return None
 
 

@@ -1,8 +1,15 @@
 import idaapi,idc,ida_nalt,ida_bytes,ida_struct,ida_name
 
-from StackView.Defines import *
+from StackView.Config import *
 
 
+
+T_VALUE = 0
+T_CODE = 1
+T_DATA = 2
+T_STACK = 3
+T_BSS = 4
+T_CONST = 5
 
 
 
@@ -160,7 +167,7 @@ def GetDataDescription(address,endinness,pointing_value = None):
     
 
     # string
-    if(idc.is_strlit(data_type_flag) or idc.get_strlit_contents(address) != None):
+    if(idc.is_strlit(data_type_flag) or (idc.get_strlit_contents(address) != None and len(idc.get_strlit_contents(address)) > 4)):
         return result + "("+str(idc.get_strlit_contents(address))+")"  
     
     # type

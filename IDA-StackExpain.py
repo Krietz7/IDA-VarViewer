@@ -9,7 +9,7 @@ import sys
 sys.path.append("F:\\Projects\\IDA-StackAnnotation")
 #@#
 
-from StackView.Defines import *
+from StackView.Config import *
 from StackView.StackViewer import *
 from StackView.VariableViewer import *
 

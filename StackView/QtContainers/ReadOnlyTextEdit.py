@@ -1,7 +1,8 @@
 from PyQt5 import QtWidgets,QtGui,Qt,QtCore
 from PyQt5.QtCore import Qt
 
-from StackView.Defines import *
+from StackView.Config import *
+
 
 
 
