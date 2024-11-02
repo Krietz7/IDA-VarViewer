@@ -20,9 +20,9 @@ from StackView.TypeConversion import *
 class VariableViewer(idaapi.PluginForm):
     def __init__(self):
         super(VariableViewer, self).__init__()    # 初始化父类
-        self.Bitness = SEC_cpu_info.bitness  # 位数
+        self.Bitness = CPUinfo.bitness  # 位数
         self.bitnessSize = self.Bitness // 8
-        self.endinness = SEC_cpu_info.endinness
+        self.endinness = CPUinfo.endinness
         self.base_pointer_name,self.stack_pointer_name,self.two_pointer_name,self.instruction_pointer_name = GetStackRegsName()
 
 
@@ -69,9 +69,8 @@ class VariableViewer(idaapi.PluginForm):
 
 
 
-        self.hook = SecDebugHooks(callbacks)
+        self.hook = DebugHooks(callbacks)
         self.hook.hook()
-        pass
 
 
     def InitVariableContainer(self):
@@ -156,32 +155,58 @@ class VariableViewer(idaapi.PluginForm):
 
 
 
-        self.VariableContainer.expand_all_nodes()
+        self.VariableContainer.expand_nodes()
 
 
 
     def AddStkVar(self,base_address,func_id,func,stk_var_list):
+        lvar_base_addr = ida_frame.frame_off_retaddr(func)
+
+        for stkvar in stk_var_list:
+            varname = stkvar[0]
+            varsize = stkvar[1]
+            vartype = stkvar[2]
+            varaddr = stkvar[3] + base_address - lvar_base_addr
+
+            print(varname,stkvar[3],base_address,lvar_base_addr,varaddr)
 
 
-
-            lvar_base_addr = ida_frame.frame_off_retaddr(func)
-
-            for stkvar in stk_var_list:
-                varname = stkvar[0]
-                varsize = stkvar[1]
-                vartype = stkvar[2]
-                varaddr = stkvar[3] + base_address - lvar_base_addr
-
-                # varaddrstr = "{}: {:X}".format(ida_name.get_nice_colored_name(varaddr,ida_name.GNCN_NOCOLOR),varaddr)
+            if(vartype.get_realtype() not in [ida_typeinf.BT_ARRAY,ida_typeinf.BTF_STRUCT,ida_typeinf.BT_PTR]):
                 varaddrstr = "{}".format(ida_name.get_nice_colored_name(varaddr,ida_name.GNCN_NOCOLOR))
                 varstructstr = GetSturctName(vartype)
+                varid = f"{varname}_{uuid.uuid4()}"
+                
+                self.VariableContainer.add_variable_line("lvar",func_id,varid,varname,varstructstr,None,varaddrstr,STKVAR_NAME_COLOR)
 
-                self.VariableContainer.add_variable_line("lvar",func_id,varname,varstructstr,None,varaddrstr,None,STKVAR_NAME_COLOR)
+                memberid = f"test_{uuid.uuid4()}"
+                self.VariableContainer.add_varible_member(varid,memberid,"test")
 
                 if(func_id not in self.func_stkvar_dict.keys()):
-                    self.func_stkvar_dict[func_id] = [["lvar",func_id,varname,varsize,vartype,varaddr]]
+                    self.func_stkvar_dict[func_id] = [[varid,varname,varsize,vartype,varaddr]]
                 else:
-                    self.func_stkvar_dict[func_id].append(["lvar",func_id,varname,varsize,vartype,varaddr])
+                    self.func_stkvar_dict[func_id].append([varid,varname,varsize,vartype,varaddr])
+            elif(vartype.get_realtype() == ida_typeinf.BT_ARRAY):
+                elems_type, elems_num = GetArrayElemInfo(vartype)
+                print(elems_type, elems_num)
+                elem_size = elems_type.get_size()
+                elem_structstr =  GetSturctName(elems_type)
+                for i in range(elems_num):
+                    elem_name = f"{varname}[{i}]"
+                    elem_id = f"{varname}_{uuid.uuid4()}"
+                    elem_addr = varaddr + elem_size * i
+                    elem_addr_str = "{}".format(ida_name.get_nice_colored_name(elem_addr,ida_name.GNCN_NOCOLOR))
+
+
+                    self.VariableContainer.add_variable_line("lvar",func_id,elem_id,elem_name,elem_structstr,None,elem_addr_str,STKVAR_NAME_COLOR)
+
+
+                    if(func_id not in self.func_stkvar_dict.keys()):
+                        self.func_stkvar_dict[func_id] = [[elem_id,elem_name,elem_size,elems_type,elem_addr]]
+                    else:
+                        self.func_stkvar_dict[func_id].append([elem_id,elem_name,elem_size,elems_type,elem_addr])
+
+
+
 
 
     def AddRegVar(self,func_id,func,reg1_var_list):
@@ -193,17 +218,18 @@ class VariableViewer(idaapi.PluginForm):
             
             varatregstr = GetRegName(varatreg,varsize)
             varstructstr = GetSturctName(vartype)
-            if(varstructstr == None):
-                varstructstr = vartype
+            varid = f"{varname}_{uuid.uuid4()}"
+
             
-            self.VariableContainer.add_variable_line("lvar",func_id,varname,varstructstr,None,varatregstr,None,REGVAR_NAME_COLOR)
+            if(vartype.get_realtype() not in [ida_typeinf.BT_ARRAY,ida_typeinf.BTF_STRUCT,ida_typeinf.BT_PTR]):
+                self.VariableContainer.add_variable_line("lvar",func_id,varid,varname,varstructstr,None,varatregstr,REGVAR_NAME_COLOR)
 
-            if(func_id not in self.func_regvar_dict.keys()):
-                self.func_regvar_dict[func_id] = [["lvar",func_id,varname,varsize,vartype,varatreg]]
+                if(func_id not in self.func_regvar_dict.keys()):
+                    self.func_regvar_dict[func_id] = [[varid,varname,varsize,vartype,varatreg]]
+                else:
+                    self.func_regvar_dict[func_id].append([varid,varname,varsize,vartype,varatreg])
             else:
-                self.func_regvar_dict[func_id].append(["lvar",func_id,varname,varsize,vartype,varatreg])
-
-
+                pass
 
 
 
@@ -215,29 +241,40 @@ class VariableViewer(idaapi.PluginForm):
     def RefreshLocalvariblesValue(self):
         for func_vars in self.func_stkvar_dict.values():
             for lvar in func_vars:
-                varsize = lvar[3]
-                vartype = lvar[4]
-                varaddr = lvar[5]
+                varid = lvar[0]
+                varsize = lvar[2]
+                vartype = lvar[3]
+                varaddr = lvar[4]
+                if(vartype.get_realtype() not in [ida_typeinf.BT_ARRAY,ida_typeinf.BTF_STRUCT,ida_typeinf.BT_PTR]):
+                    var_byte = idc.get_bytes(varaddr,varsize)
+                    var_value = ConversionByteToStr(var_byte,varsize,vartype)
 
-                var_byte = idc.get_bytes(varaddr,varsize)
-                var_value = ConversionByteToStr(var_byte,varsize,vartype)
+                    self.VariableContainer.EditVaribleInfo(varid,var_value,2)
+                elif(vartype.get_realtype() == ida_typeinf.BT_ARRAY):
+                    pass
 
-                self.VariableContainer.EditVaribleInfo(lvar[0],lvar[1],lvar[2],2,var_value)
+
+
+
+
 
 
         for func_vars in self.func_regvar_dict.values():
             for lvar in func_vars:
-                varsize = lvar[3]
-                vartype = lvar[4]
-                varatreg = lvar[5]
+                varid = lvar[0]
+                varsize = lvar[2]
+                vartype = lvar[3]
+                varatreg = lvar[4]
 
                 out = None
                 regname = ida_hexrays.get_mreg_name(varatreg,varsize,out)
-                var_byte =  ida_dbg.get_reg_val(regname)
-                var_value = ConversionIntToStr(var_byte, varsize, vartype)
+                if(vartype.get_realtype() not in [ida_typeinf.BT_ARRAY,ida_typeinf.BTF_STRUCT,ida_typeinf.BT_PTR]):
+                    var_byte =  ida_dbg.get_reg_val(regname)
+                    var_value = ConversionIntToStr(var_byte, varsize, vartype)
 
-                self.VariableContainer.EditVaribleInfo(lvar[0],lvar[1],lvar[2],2,var_value)
-
+                    self.VariableContainer.EditVaribleInfo(varid,var_value,2)
+                elif(vartype.get_realtype() == ida_typeinf.BT_ARRAY):
+                    pass
 
 
 
@@ -318,4 +355,3 @@ class VariableViewer(idaapi.PluginForm):
     def OnClose(self, form):
         if self.hook:
             self.hook.unhook()
-        pass

@@ -73,14 +73,14 @@ class CpuInfo():
 
 
 
-SEC_cpu_info = CpuInfo()
+CPUinfo = CpuInfo()
 
 
 
 # 获取栈寄存器名称
 def GetStackRegsName():
-    global SEC_cpu_info
-    stack_registers = SEC_cpu_info.stack_registers[SEC_cpu_info.cpu_struct]
+    global CPUinfo
+    stack_registers = CPUinfo.stack_registers[CPUinfo.cpu_struct]
     
     base_pointer = stack_registers["BasePointer"]
     stack_pointer = stack_registers["StackPointer"]
@@ -239,10 +239,10 @@ def GetValueDescription(value, processed_addresses=None):
         processed_addresses = set()
 
     result = []
-    global SEC_cpu_info
-    if SEC_cpu_info.bitness == 32:
+    global CPUinfo
+    if CPUinfo.bitness == 32:
         pointer_size = 4
-    elif SEC_cpu_info.bitness == 64:
+    elif CPUinfo.bitness == 64:
         pointer_size = 8
     else:
         return []
@@ -256,7 +256,7 @@ def GetValueDescription(value, processed_addresses=None):
 
 
 
-    if(not SEC_cpu_info.is_bigendianness):
+    if(not CPUinfo.is_bigendianness):
         endinness = 'little'
     else:
         endinness = 'big'

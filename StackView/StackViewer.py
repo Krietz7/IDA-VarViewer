@@ -21,9 +21,9 @@ from StackView.FunctionInfo import *
 class StackViewer(idaapi.PluginForm):
     def __init__(self):
         super(StackViewer, self).__init__()    # 初始化父类
-        self.Bitness = SEC_cpu_info.bitness  # 位数
+        self.Bitness = CPUinfo.bitness  # 位数
         self.bitnessSize = self.Bitness // 8
-        self.endinness = SEC_cpu_info.endinness
+        self.endinness = CPUinfo.endinness
         self.base_pointer_name,self.stack_pointer_name,self.two_pointer_name,self.instruction_pointer_name = GetStackRegsName()
 
         self.InitSuccess = False
@@ -33,7 +33,7 @@ class StackViewer(idaapi.PluginForm):
         self.StackvarDict = {}
 
         self.followInReg = self.stack_pointer_name
-        
+        self.followInAddress = 0
 
 
     def OnCreate(self, form):
@@ -82,7 +82,7 @@ class StackViewer(idaapi.PluginForm):
 
 
 
-        self.hook = SecDebugHooks(callbacks)
+        self.hook = DebugHooks(callbacks)
         self.hook.hook()
 
 
@@ -184,7 +184,8 @@ class StackViewer(idaapi.PluginForm):
                     follow_in_address = stack_pointer_value
             elif(self.followInReg == self.base_pointer_name):
                     follow_in_address = base_pointer_value
-
+            else:
+                follow_in_address = self.followInAddress
 
 
             # 以followIn_address为基准开始初始化
@@ -235,7 +236,8 @@ class StackViewer(idaapi.PluginForm):
                     follow_in_address = stack_pointer_value
             elif(self.followInReg == self.base_pointer_name):
                     follow_in_address = base_pointer_value
-
+            else:
+                follow_in_address = self.followInAddress
 
 
             # 如果栈顶指针大幅移动，则重置地址
@@ -338,7 +340,7 @@ class StackViewer(idaapi.PluginForm):
             for i in range(0,len(varinfo),3):
                 self.StackContainer.InsertText(address,3,varinfo[i+0],STACK_VARIBLE_REMARK_COLOR)
                 varbytes = idc.get_bytes(varinfo[i+2],varinfo[i+1])
-                varvalue = int.from_bytes(varbytes,byteorder=SEC_cpu_info.endinness, signed=False)
+                varvalue = int.from_bytes(varbytes,byteorder=CPUinfo.endinness, signed=False)
                 varstr = ":"+hex(varvalue)+" "
                 self.StackContainer.InsertText(address,3,varstr,STACK_VARIBLE_REMARK_COLOR)
 
@@ -368,6 +370,19 @@ class StackViewer(idaapi.PluginForm):
         self.followInReg = self.base_pointer_name
         self.RefreshStackContainer()
         self.StackContainer.RefreshWindow()
+
+
+    def FollowInAddress(self,addr):
+
+        form = addr_input_form(addr)
+        IsChange = form.Execute()
+        if(IsChange):
+            self.followInReg = None
+            self.followInAddress = form.inputaddr
+            self.RefreshStackContainer()
+            self.StackContainer.RefreshWindow()
+
+
 
 
     def ResetSize(self):
@@ -443,7 +458,6 @@ class StackViewer(idaapi.PluginForm):
         stkvar_base_addr = GetFrameBaseAddress(func,ip_reg_value, sp_reg_value,self.Bitness,self.endinness)
         if(stkvar_base_addr != None):
             stkvar_dict = GetstkvarAddress(func,stkvar_base_addr,self.bitnessSize)
-
             for current_address in range(start_address,end_address,self.bitnessSize):
                 if(current_address < sp_reg_value):
                     self.StackContainer.ClearItem(current_address,4)
@@ -513,3 +527,24 @@ class size_set_form(idaapi.Form):
         return 1
 
 
+class addr_input_form(idaapi.Form):
+    def __init__(self,inputaddr):
+        self.inputaddr = inputaddr;
+        super(addr_input_form, self).__init__(
+        r'''
+        {FormChangeCb}
+        <Follow in address: {_addr}>
+        ''',
+        {
+        "FormChangeCb": self.FormChangeCb(self.OnFormChange),
+
+        "_addr": self.NumericInput(value = self.inputaddr, swidth = 30),
+        }
+        )
+        self.Compile()
+    
+    def OnFormChange(self,fid):
+        if(fid == self._addr.id):
+            self.inputaddr = self.GetControlValue(self._addr)
+
+        return 1

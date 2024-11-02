@@ -241,8 +241,9 @@ class StackContainer(QtWidgets.QWidget):
 
         action4 = QtWidgets.QAction('Follow in SP', self)
         action5 = QtWidgets.QAction('Follow in BP', self)
+        action6 = QtWidgets.QAction('Follow in Address', self)
 
-        action6 = QtWidgets.QAction('Reset Size', self)
+        action7 = QtWidgets.QAction('Reset Size', self)
 
 
         # 连接菜单项的触发事件
@@ -252,8 +253,9 @@ class StackContainer(QtWidgets.QWidget):
 
         action4.triggered.connect(self.FollowInSP)
         action5.triggered.connect(self.FollowInBP)
+        action6.triggered.connect(self.FollowInAddress)
 
-        action6.triggered.connect(self.ResetSize)
+        action7.triggered.connect(self.ResetSize)
 
 
 
@@ -268,8 +270,9 @@ class StackContainer(QtWidgets.QWidget):
         menu.addSeparator()
         menu.addAction(action4)
         menu.addAction(action5)
-        menu.addSeparator()
         menu.addAction(action6)
+        menu.addSeparator()
+        menu.addAction(action7)
 
         # 显示菜单
         menu.exec_(pos)
@@ -286,7 +289,8 @@ class StackContainer(QtWidgets.QWidget):
 
     # 重新初始化窗口
     def ReinitializeWindows(self):
-        self.parent_viewer.InitStackContainer()
+        if(hasattr(self.parent_viewer,"InitStackContainer")):
+            self.parent_viewer.InitStackContainer()
 
 
     def ShowTheItem(self,item):
@@ -307,15 +311,21 @@ class StackContainer(QtWidgets.QWidget):
         self.ClearhighlightingItem()
         if(hasattr(self.parent_viewer,"FollowInSP")):
             self.parent_viewer.FollowInSP()
-    
-
-
 
     def FollowInBP(self):
         self.ClearhighlightingItem()
         if(hasattr(self.parent_viewer,"FollowInBP")):
             self.parent_viewer.FollowInBP()
     
+    def FollowInAddress(self):
+        select_line = self.table_widget.currentRow()
+        select_addr =  self.address_id[select_line]
+
+        self.ClearhighlightingItem()
+        if(hasattr(self.parent_viewer,"FollowInAddress")):
+            self.parent_viewer.FollowInAddress(select_addr)
+
+
     def ResetSize(self):
         self.ClearhighlightingItem()
         if(hasattr(self.parent_viewer,"ResetSize")):

@@ -127,7 +127,7 @@ def GetstkvarAddress(func,func_base_addr,bitnessSize):
 
                 addr = (func_base_addr - lvar_base_addr + offset) - (func_base_addr - lvar_base_addr + offset) % bitnessSize
                 if(addr not in stkvar_dict):
-                    stkvar_dict[addr] = [name,size,addr]
+                    stkvar_dict[addr] = [name,size,func_base_addr - lvar_base_addr + offset]
                 else:
                     stkvar_dict[addr] += [name,size,func_base_addr - lvar_base_addr + offset]
     return stkvar_dict

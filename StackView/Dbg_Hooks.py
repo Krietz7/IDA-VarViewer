@@ -6,9 +6,9 @@ import ida_idaapi
 
 
 
-class SecDebugHooks(idaapi.DBG_Hooks):
+class DebugHooks(idaapi.DBG_Hooks):
     def __init__(self,callback):
-        super(SecDebugHooks, self).__init__()
+        super(DebugHooks, self).__init__()
         self.callback = callback
 
 
@@ -28,7 +28,7 @@ def register_dbg_hook():
             dbg_hook.unhook()    # 已注册 析构
     except:
         pass
-    dbg_hook = SecDebugHooks()  # 实例化DbgHook()
+    dbg_hook = DebugHooks()  # 实例化DbgHook()
     dbg_hook.hook()   # hook
 
 

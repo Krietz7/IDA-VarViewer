@@ -18,15 +18,14 @@ class VariableContainer(QtWidgets.QWidget):
 
         # 设置表头
         self.tree_widget.setHeaderHidden(False)  
-        self.tree_widget.setColumnCount(5)  
-        self.tree_widget.setHeaderLabels(['Name', 'Type', 'Value','Address', 'Remark'])
+        self.tree_widget.setColumnCount(4)  
+        self.tree_widget.setHeaderLabels(['Name', 'Type', 'Value','Address', ])
         horizontalHeader = self.tree_widget.horizontalScrollBar()
         
         self.tree_widget.setColumnWidth(0, 400)
         self.tree_widget.setColumnWidth(1, 250)
         self.tree_widget.setColumnWidth(2, 300)
         self.tree_widget.setColumnWidth(3, 450)
-        self.tree_widget.setColumnWidth(4, 200)
 
 
 
@@ -34,6 +33,7 @@ class VariableContainer(QtWidgets.QWidget):
 
         self.backgroundcolor = DEFINE_BACKGROUND_COLOR
         self.topItemsDict = {}  # 保存结构： { topitemid : [item, itemdict: {itemid : item}],  ......   }
+        self.varsDict = {} 
         self.waittorefresh = []
 
 
@@ -85,47 +85,66 @@ class VariableContainer(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
 
         # 添加菜单项
-        action1 = QtWidgets.QAction('action1', self)
-        action2 = QtWidgets.QAction('action2', self)
+        action1 = QtWidgets.QAction('expamd nodes', self)
+        action2 = QtWidgets.QAction('fold nodes', self)
         action3 = QtWidgets.QAction('action3', self)
 
         # 连接菜单项的触发事件
-        # action1.triggered.connect(self.RefreshWindow)
-        # action2.triggered.connect(self.ReinitializeWindows)
-        # action3.triggered.connect(lambda: self.ShowTheItem(item))
+        action1.triggered.connect(lambda: self.expand_nodes(pos))
+        action2.triggered.connect(lambda: self.fold_nodes(pos))
+
 
         # 添加菜单项到菜单
         menu.addAction(action1)
         menu.addAction(action2)
-        menu.addAction(action3)
+        menu.addSeparator()
+
 
         # 显示菜单
         menu.exec_(pos)
 
-    # 展开所有子节点
-    def expand_all_nodes(self):
+    # 展开子节点
+    def expand_nodes(self,pos = None):
         def expand_recursively(item):
             item.setExpanded(True)
             for i in range(item.childCount()):
                 child = item.child(i)
                 expand_recursively(child)
 
+        if(pos != None):
+            item = self.tree_widget.itemAt(pos)
+            if item:
+                selected_items = self.tree_widget.selectedItems()
+                for item in selected_items:
+                    expand_recursively(item)
+                return 
         for i in range(self.tree_widget.topLevelItemCount()):
             top_level_item = self.tree_widget.topLevelItem(i)
             expand_recursively(top_level_item)
+                
 
 
-    def fold_all_nodes(self):
+
+    def fold_nodes(self,pos = None):
         def fold_recursively(item):
             item.setExpanded(False)
             for i in range(item.childCount()):
                 child = item.child(i)
                 fold_recursively(child)
+        item = self.tree_widget.itemAt(pos)
 
-        # 遍历顶级项并递归地折叠所有子节点
+        if(pos != None):
+            item = self.tree_widget.itemAt(pos)
+            if item:
+                selected_items = self.tree_widget.selectedItems()
+                for item in selected_items:
+                    fold_recursively(item)
+                return 
         for i in range(self.tree_widget.topLevelItemCount()):
             top_level_item = self.tree_widget.topLevelItem(i)
             fold_recursively(top_level_item)
+                
+
 
 
 
@@ -185,7 +204,7 @@ class VariableContainer(QtWidgets.QWidget):
         return True
 
 
-    def add_variable_line(self, topitemID, parentitemID, Varname, Type=None, value=None, Address=None, Remark=None, Color=None):
+    def add_variable_line(self, topitemID, parentitemID,VarID, Varname, Type=None, value=None, Address=None, Color=None):
         if(topitemID not in self.topItemsDict.keys()):
             return False # 该父项在顶级列表中不存在
         elif(parentitemID not in self.topItemsDict[topitemID][1]):
@@ -201,8 +220,8 @@ class VariableContainer(QtWidgets.QWidget):
 
 
         
-        Editlist = [ReadOnlyLineEdit(Varname,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyTextEdit(Address,self), ReadOnlyLineEdit(Remark,self)]  
-        ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_ADDR_COLOR,VAR_REMARK_COLOR]
+        Editlist = [ReadOnlyLineEdit(Varname,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyLineEdit(Address,self)]  
+        ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_ADDR_COLOR]
         if(Color != None):
             ColorList[0] = Color
         self.waittorefresh += Editlist
@@ -218,32 +237,53 @@ class VariableContainer(QtWidgets.QWidget):
             editdict[Varname] += [edit]
 
             self.tree_widget.setItemWidget(item, i, edit)
+        self.varsDict[VarID] = item
+
         return True
 
+    def add_varible_member(self,VarID,memberID,memberName,Type=None, value=None, Address=None, Color=None):
+        if(VarID not in self.varsDict.keys()):
+            return 
+        targetedit = self.varsDict[VarID]
+        item = QtWidgets.QTreeWidgetItem()  # 创建一个四列的项
+        targetedit.addChild(item)
+
+        Editlist = [ReadOnlyLineEdit(memberName,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyLineEdit(Address,self)]  
+        ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_ADDR_COLOR]
+        if(Color != None):
+            ColorList[0] = Color
+        self.waittorefresh += Editlist
+        for i in range(len(Editlist)):
+            edit = Editlist[i]
+            color = ColorList[i]
+            
+            edit.SetbgColor(TRANSPARENT)
+            edit.SetColor(color)
+            edit.Refresh()
+            self.tree_widget.setItemWidget(item, i, edit)
+        self.varsDict[memberID] = item
+
+        return True
+        
 
 
-    def EditVaribleInfo(self, topitemID, parentitemID, Varname, Header, Text, color=None):
-        if(topitemID not in self.topItemsDict.keys()):
-            return  # 该父项在顶级列表中不存在
-        elif(parentitemID not in self.topItemsDict[topitemID][1]):
-            return # 该父项在二级列表中不存在
 
-        editdict = self.topItemsDict[topitemID][1][parentitemID][1]
-        targetedit = editdict[Varname][Header]
+    def EditVaribleInfo(self, VarID, Text, column, color=None):
+        if(VarID not in self.varsDict.keys()):
+            return 
+
+        targetedit =  self.tree_widget.itemWidget(self.varsDict[VarID], column)
 
         targetedit.EditLine(Text,color)
         targetedit.Refresh()
         self.waittorefresh.append(targetedit)
         
 
-    def InsertVaribleInfo(self, topitemID, parentitemID, Varname, Header, Text, color=None):
-        if(topitemID not in self.topItemsDict.keys()):
-            return  # 该父项在顶级列表中不存在
-        elif(parentitemID not in self.topItemsDict[topitemID][1]):
-            return # 该父项在二级列表中不存在
+    def InsertVaribleInfo(self, VarID, Text, column, color=None):
+        if(VarID not in self.varsDict.keys()):
+            return 
 
-        editdict = self.topItemsDict[topitemID][1][parentitemID][1]
-        targetedit = editdict[Varname][Header]
+        targetedit =  self.tree_widget.itemWidget(self.varsDict[VarID], column)
 
         targetedit.InsertText(Text,color)
         targetedit.Refresh()
@@ -258,6 +298,6 @@ class VariableContainer(QtWidgets.QWidget):
         parent_item = self.topItemsDict[topitemID][0]
         child_item = self.topItemsDict[topitemID][1][parentitemID][0]
         parent_item.removeChild(child_item)
-        self.topItemsDict[topitemID][1].pop(parentitemID)  # [parentitemID][0]
+        self.topItemsDict[topitemID][1].pop(parentitemID)
         return True
 

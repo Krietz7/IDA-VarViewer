@@ -68,15 +68,15 @@ TypeDict = {
 type_handlers = {
     ida_typeinf.BT_UNK: lambda b: str(b), 
     ida_typeinf.BT_VOID: lambda b: str(b), 
-    ida_typeinf.BT_INT8: lambda b: int.from_bytes(b[:1], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BT_INT16: lambda b: int.from_bytes(b[:2], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BT_INT32: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BT_INT64: lambda b: int.from_bytes(b[:8], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BT_INT128: lambda b: int.from_bytes(b[:16], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BT_INT: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=False),
+    ida_typeinf.BT_INT8: lambda b: int.from_bytes(b[:1], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BT_INT16: lambda b: int.from_bytes(b[:2], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BT_INT32: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BT_INT64: lambda b: int.from_bytes(b[:8], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BT_INT128: lambda b: int.from_bytes(b[:16], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BT_INT: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=False),
     ida_typeinf.BT_BOOL: lambda b:  "True" if (b[0] != 0) else "False",
-    ida_typeinf.BT_FLOAT: lambda b: struct.unpack('f', b[:4])[0] if(SEC_cpu_info.endinness == 'little') else struct.unpack('>f', b[:4])[0],
-    ida_typeinf.BT_PTR: lambda b: int.from_bytes(b[:SEC_cpu_info.bitnessSize], byteorder=SEC_cpu_info.endinness, signed=False),
+    ida_typeinf.BT_FLOAT: lambda b: struct.unpack('f', b[:4])[0] if(CPUinfo.endinness == 'little') else struct.unpack('>f', b[:4])[0],
+    ida_typeinf.BT_PTR: lambda b: int.from_bytes(b[:CPUinfo.bitnessSize], byteorder=CPUinfo.endinness, signed=False),
     ida_typeinf.BT_UNKNOWN: lambda b: str(b), 
     ida_typeinf.BT_UNK_BYTE: lambda b: str(b), 
     ida_typeinf.BT_UNK_WORD: lambda b: str(b), 
@@ -92,24 +92,24 @@ type_handlers = {
     ida_typeinf.BTF_BYTE: lambda b: str(b),
     ida_typeinf.BTF_UNK: lambda b: str(b),
     ida_typeinf.BTF_VOID: lambda b: str(b),  
-    ida_typeinf.BTF_INT8: lambda b: int.from_bytes(b[:1], byteorder=SEC_cpu_info.endinness, signed=True),
+    ida_typeinf.BTF_INT8: lambda b: int.from_bytes(b[:1], byteorder=CPUinfo.endinness, signed=True),
     ida_typeinf.BTF_CHAR: lambda b: str(b[:1]),
-    ida_typeinf.BTF_UINT8: lambda b: int.from_bytes(b[:1], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BTF_INT16: lambda b: int.from_bytes(b[:2], byteorder=SEC_cpu_info.endinness, signed=True),
-    ida_typeinf.BTF_UINT16: lambda b: int.from_bytes(b[:2], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BTF_INT32: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=True),
-    ida_typeinf.BTF_UINT32: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BTF_INT64: lambda b: int.from_bytes(b[:8], byteorder=SEC_cpu_info.endinness, signed=True),
-    ida_typeinf.BTF_UINT64: lambda b: int.from_bytes(b[:8], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BTF_INT128: lambda b: int.from_bytes(b[:16], byteorder=SEC_cpu_info.endinness, signed=True),
-    ida_typeinf.BTF_UINT128: lambda b: int.from_bytes(b[:16], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BTF_INT: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=True),
-    ida_typeinf.BTF_UINT: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=False),
-    ida_typeinf.BTF_SINT: lambda b: int.from_bytes(b[:4], byteorder=SEC_cpu_info.endinness, signed=True),
+    ida_typeinf.BTF_UINT8: lambda b: int.from_bytes(b[:1], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BTF_INT16: lambda b: int.from_bytes(b[:2], byteorder=CPUinfo.endinness, signed=True),
+    ida_typeinf.BTF_UINT16: lambda b: int.from_bytes(b[:2], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BTF_INT32: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=True),
+    ida_typeinf.BTF_UINT32: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BTF_INT64: lambda b: int.from_bytes(b[:8], byteorder=CPUinfo.endinness, signed=True),
+    ida_typeinf.BTF_UINT64: lambda b: int.from_bytes(b[:8], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BTF_INT128: lambda b: int.from_bytes(b[:16], byteorder=CPUinfo.endinness, signed=True),
+    ida_typeinf.BTF_UINT128: lambda b: int.from_bytes(b[:16], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BTF_INT: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=True),
+    ida_typeinf.BTF_UINT: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=False),
+    ida_typeinf.BTF_SINT: lambda b: int.from_bytes(b[:4], byteorder=CPUinfo.endinness, signed=True),
     ida_typeinf.BTF_BOOL: lambda b:  "True" if (b[0] != 0) else "False",
-    ida_typeinf.BTF_FLOAT: lambda b: struct.unpack('f', b[:4])[0] if(SEC_cpu_info.endinness == 'little') else struct.unpack('>f', b[:4])[0],
-    ida_typeinf.BTF_DOUBLE: lambda b: struct.unpack('d', b[:8])[0] if(SEC_cpu_info.endinness == 'little') else struct.unpack('>d', b[:8])[0],
-    ida_typeinf.BTF_LDOUBLE: lambda b: struct.unpack('d', b[:8])[0] if(SEC_cpu_info.endinness == 'little') else struct.unpack('>d', b[:8])[0],
+    ida_typeinf.BTF_FLOAT: lambda b: struct.unpack('f', b[:4])[0] if(CPUinfo.endinness == 'little') else struct.unpack('>f', b[:4])[0],
+    ida_typeinf.BTF_DOUBLE: lambda b: struct.unpack('d', b[:8])[0] if(CPUinfo.endinness == 'little') else struct.unpack('>d', b[:8])[0],
+    ida_typeinf.BTF_LDOUBLE: lambda b: struct.unpack('d', b[:8])[0] if(CPUinfo.endinness == 'little') else struct.unpack('>d', b[:8])[0],
     ida_typeinf.BTF_TBYTE: lambda _: "tbyte",
     ida_typeinf.BTF_STRUCT: lambda _: "struct",
     ida_typeinf.BTF_UNION: lambda _: "union",
@@ -147,4 +147,23 @@ def ConversionByteToStr(byte,size,type):
 
 
 def ConversionIntToStr(int,size,type):
-    return ConversionByteToStr(int.to_bytes(size,byteorder=SEC_cpu_info.endinness),size,type)
+    return ConversionByteToStr(int.to_bytes(size,byteorder=CPUinfo.endinness),size,type)
+
+
+
+def GetArrayElemInfo(type):
+    arr_type = ida_typeinf.array_type_data_t()
+    type.get_array_details(arr_type)
+    return arr_type.elem_type,arr_type.nelems
+
+
+
+def ConverArrayToStr(byte,size,type):
+    elem_type, nelems = GetArrayElemInfo(type)
+    result = ""
+    for i in range(nelems):
+        elem_size = ida_typeinf.get_item_size(elem_type)
+        elem_byte = byte[i*elem_size: (i+1)*elem_size]
+        elem_str = ConversionByteToStr(elem_byte,elem_size, elem_type)
+        result += f"{elem_str},"
+    return result[:-1]
