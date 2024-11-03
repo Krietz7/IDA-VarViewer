@@ -235,5 +235,5 @@ class ReadOnlyTextEdit(QtWidgets.QTextEdit):
 
     def Refresh(self):
         self.__set_style()
-        self.__adjust_line_edit_width()
+        # self.__adjust_line_edit_width()
         self.__scroll_to_start()

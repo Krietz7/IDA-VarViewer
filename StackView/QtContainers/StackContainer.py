@@ -6,61 +6,16 @@ from PyQt5.QtCore import Qt
 from StackView.Config import *
 from StackView.QtContainers.ReadOnlyLineEdit import ReadOnlyLineEdit
 from StackView.QtContainers.ReadOnlyTextEdit import ReadOnlyTextEdit
-
-
-
-class TemporaryTextEdit(QtWidgets.QTextEdit):
-    def __init__(self, text=None, parent=None,bgcolor=None,linecolor=None):
-        super(TemporaryTextEdit, self).__init__(text,parent)
-        self.table_parent = parent
-        self.setGeometry(300, 300, 400, 200)
-        self.setReadOnly(True)
-        self.setFont(QtGui.QFont(TEXT_FONT, TEXT_FONT_SIZE))
-        self.setStyleSheet(f"""selection-color:{TEXT_SELECTED_COLOR};
-                                    selection-background-color:{TEXT_SELECTED_BACKGROUND_COLOR};
-                                    border: none;background-color: {bgcolor};color: {linecolor}""")
-    
-
-    def mouseDoubleClickEvent(self, event):
-        super().mouseDoubleClickEvent(event)
-        cursor = self.textCursor()
-        if (cursor.hasSelection() and hasattr(self.table_parent,"WidgeDoubleClick")):
-            selected_text = cursor.selectedText()
-            self.table_parent.WidgeDoubleClick(selected_text)
-
-    def contextMenuEvent(self, event):
-        pass
-
-    # 保持箭头光标样式
-    def enterEvent(self, event):
-        self.viewport().setCursor(QtCore.Qt.ArrowCursor) 
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        self.viewport().setCursor(QtCore.Qt.ArrowCursor) 
-        super().leaveEvent(event)
+from StackView.QtContainers.TemporaryTextEdit import *
 
 
 
 
-class TemporaryItemViewer(QtWidgets.QMainWindow):
-    def __init__(self, parent, item):
-        super().__init__(parent)
-        self.setWindowTitle(item.objectName())
-        self.setGeometry(300, 300, 400, 200)
 
-        # 创建一个中心部件并设置布局
-        central_widget = QtWidgets.QWidget(self)
-        layout = QtWidgets.QVBoxLayout(central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(item)
-
-        # 设置中心部件
-        self.setCentralWidget(central_widget)
 
 
 class StackContainer(QtWidgets.QWidget):
-    def __init__(self,parent,bitness=64,parent_viewer = None):
+    def __init__(self,parent,bitness,parent_viewer):
         super(StackContainer,self).__init__(parent)
 
         # 初始化
@@ -356,7 +311,8 @@ class StackContainer(QtWidgets.QWidget):
             selected_value = selected_items[0].GetLine()
             if(selected_value != ""):
                 for item in self.widget_dict:
-                    if(self.widget_dict[item].GetLine() == selected_value and isinstance(self.widget_dict[item],ReadOnlyLineEdit) ):
+                    if(self.widget_dict[item].GetLine() == selected_value and isinstance(self.widget_dict[item],ReadOnlyLineEdit) 
+                        and (self.objname_header_dict[1].replace('%X', '') in item or self.objname_header_dict[2].replace('%X', '') in item) ):
                         originalcolor = self.widget_dict[item].GetbgColor()
                         self.widget_dict[item].SetbgColor(0xFFFF33)
                         self.highlighting.append([item,originalcolor])

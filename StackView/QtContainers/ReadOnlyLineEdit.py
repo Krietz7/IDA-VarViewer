@@ -9,10 +9,11 @@ from StackView.Config import *
 
 
 class ReadOnlyLineEdit(QtWidgets.QLineEdit):
-    def __init__(self,text=None,parent=None):
+    def __init__(self,text,parent,lineID = None):
         super(ReadOnlyLineEdit, self).__init__(text,parent)
         # 初始化
         self.table_parent = parent   # 父控件
+        self.lineID = lineID
         self.setReadOnly(True)
         self.setFont(QtGui.QFont(TEXT_FONT, TEXT_FONT_SIZE))
 
@@ -79,7 +80,7 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
     # 双击事件：发送被双击的文本到父控件
     def mouseDoubleClickEvent(self, event):
         super().mouseDoubleClickEvent(event)
-        current_text = self.text()
+        current_text = self.selectedText()
         if(hasattr(self.table_parent,"WidgeDoubleClick")):
             self.table_parent.WidgeDoubleClick(current_text)
     
@@ -143,5 +144,5 @@ class ReadOnlyLineEdit(QtWidgets.QLineEdit):
 
     def Refresh(self):
         self.__set_style()
-        self.__adjust_line_edit_width()
+        # self.__adjust_line_edit_width()
         self.__scroll_to_start()

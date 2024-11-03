@@ -5,13 +5,14 @@ from PyQt5.QtCore import Qt
 
 from StackView.Config import *
 from StackView.QtContainers.ReadOnlyLineEdit import ReadOnlyLineEdit
-from StackView.QtContainers.ReadOnlyTextEdit import ReadOnlyTextEdit
-
+from StackView.QtContainers.TemporaryTextEdit import *
 
 class VariableContainer(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent,parent_viewer):
         super(VariableContainer, self).__init__(parent)
-        
+        self.parent_viewer = parent_viewer
+
+
         self.tree_widget = QtWidgets.QTreeWidget(self)
         self.tree_widget.setIndentation(15)  # 设置缩进
         self.tree_widget.setUniformRowHeights(True)
@@ -52,7 +53,9 @@ class VariableContainer(QtWidgets.QWidget):
     def init_tree(self):
         self.reset_QSS()
         self.tree_widget.setAlternatingRowColors(True)
-
+        self.add_top_level_item("watching","Watching",TOP_ITEM_COLOR)
+        self.add_top_level_item("lvar","Local variables",TOP_ITEM_COLOR)
+        self.add_top_level_item("gvar","Global variables",TOP_ITEM_COLOR)
        
     def reset_QSS(self):
         
@@ -87,17 +90,29 @@ class VariableContainer(QtWidgets.QWidget):
         # 添加菜单项
         action1 = QtWidgets.QAction('expamd nodes', self)
         action2 = QtWidgets.QAction('fold nodes', self)
-        action3 = QtWidgets.QAction('action3', self)
+        action3 = QtWidgets.QAction('Show the item', self)
+        action4 = QtWidgets.QAction('Reset pointer size', self)
+
+
 
         # 连接菜单项的触发事件
         action1.triggered.connect(lambda: self.expand_nodes(pos))
         action2.triggered.connect(lambda: self.fold_nodes(pos))
+        action3.triggered.connect(lambda: self.ShowTheItem(item))
+        action4.triggered.connect(lambda: self.ResetPointerSize(item))
+
+        if(item == None):
+            action3.setVisible(False)
+            action4.setVisible(False)
+
 
 
         # 添加菜单项到菜单
         menu.addAction(action1)
         menu.addAction(action2)
         menu.addSeparator()
+        menu.addAction(action3)
+        menu.addAction(action4)
 
 
         # 显示菜单
@@ -144,6 +159,27 @@ class VariableContainer(QtWidgets.QWidget):
             top_level_item = self.tree_widget.topLevelItem(i)
             fold_recursively(top_level_item)
                 
+
+    def ShowTheItem(self,item):
+        if(isinstance(item,ReadOnlyLineEdit)):
+            tmp_text_edit = TemporaryTextEdit(None,self,self.backgroundcolor,item.linecolor)
+            text = item.text()
+            tmp_text_edit.setPlainText(text)
+
+        itemviewer = TemporaryItemViewer(self,tmp_text_edit)
+        itemviewer.show()  
+
+
+    def ResetPointerSize(self,item):
+        if(isinstance(item,ReadOnlyLineEdit) and hasattr(self.parent_viewer,"ResetPointerSize")):
+            self.parent_viewer.ResetPointerSize(item.lineID)
+
+
+
+
+
+
+
 
 
 
@@ -220,7 +256,7 @@ class VariableContainer(QtWidgets.QWidget):
 
 
         
-        Editlist = [ReadOnlyLineEdit(Varname,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyLineEdit(Address,self)]  
+        Editlist = [ReadOnlyLineEdit(Varname,self,VarID),ReadOnlyLineEdit(Type,self,VarID),ReadOnlyLineEdit(value,self,VarID),ReadOnlyLineEdit(Address,self,VarID)]  
         ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_ADDR_COLOR]
         if(Color != None):
             ColorList[0] = Color
@@ -243,12 +279,12 @@ class VariableContainer(QtWidgets.QWidget):
 
     def add_varible_member(self,VarID,memberID,memberName,Type=None, value=None, Address=None, Color=None):
         if(VarID not in self.varsDict.keys()):
-            return 
+            return False
         targetedit = self.varsDict[VarID]
         item = QtWidgets.QTreeWidgetItem()  # 创建一个四列的项
         targetedit.addChild(item)
 
-        Editlist = [ReadOnlyLineEdit(memberName,self),ReadOnlyLineEdit(Type,self),ReadOnlyLineEdit(value,self),ReadOnlyLineEdit(Address,self)]  
+        Editlist = [ReadOnlyLineEdit(memberName,self,VarID),ReadOnlyLineEdit(Type,self,VarID),ReadOnlyLineEdit(value,self,VarID),ReadOnlyLineEdit(Address,self,VarID)]  
         ColorList = [VAR_NAME_COLOR,VAR_TYPE_COLOR,VAR_VALUE_COLOR,VAR_ADDR_COLOR]
         if(Color != None):
             ColorList[0] = Color
@@ -265,6 +301,15 @@ class VariableContainer(QtWidgets.QWidget):
 
         return True
         
+    def del_varible_members(self,VarID):
+        if(VarID not in self.varsDict.keys()):
+            return False
+        targetedit = self.varsDict[VarID]
+        while targetedit.childCount() > 0:
+            targetedit.removeChild(targetedit.child(0))
+        return True
+
+
 
 
 
@@ -301,3 +346,6 @@ class VariableContainer(QtWidgets.QWidget):
         self.topItemsDict[topitemID][1].pop(parentitemID)
         return True
 
+    def WidgeDoubleClick(self,selected_data): 
+        if(hasattr(self.parent_viewer,"WidgeDoubleClick")):
+            self.parent_viewer.WidgeDoubleClick(selected_data)

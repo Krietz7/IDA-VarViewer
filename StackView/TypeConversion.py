@@ -146,10 +146,6 @@ def ConversionByteToStr(byte,size,type):
         return str(result)
 
 
-def ConversionIntToStr(int,size,type):
-    return ConversionByteToStr(int.to_bytes(size,byteorder=CPUinfo.endinness),size,type)
-
-
 
 def GetArrayElemInfo(type):
     arr_type = ida_typeinf.array_type_data_t()
@@ -158,12 +154,43 @@ def GetArrayElemInfo(type):
 
 
 
-def ConverArrayToStr(byte,size,type):
-    elem_type, nelems = GetArrayElemInfo(type)
-    result = ""
-    for i in range(nelems):
-        elem_size = ida_typeinf.get_item_size(elem_type)
-        elem_byte = byte[i*elem_size: (i+1)*elem_size]
-        elem_str = ConversionByteToStr(elem_byte,elem_size, elem_type)
-        result += f"{elem_str},"
-    return result[:-1]
+def GetPtrTargetInfo(type):
+    target_type = type.get_ptrarr_object()
+    target_size = type.get_ptrarr_objsize()
+    return target_type,target_size
+
+
+
+
+def GetStructSizeInfo(type):
+    typename = ida_typeinf.print_tinfo('', 0, 0, ida_typeinf.PRTYPE_1LINE, type, '', '')
+    struct_id = ida_struct.get_struc_id(typename)
+    struct_ptr = ida_struct.get_struc(struct_id)
+    return ida_struct.get_struc_size(struct_ptr)
+
+
+def GetStructMemberInfo(type):
+    typename = ida_typeinf.print_tinfo('', 0, 0, ida_typeinf.PRTYPE_1LINE, type, '', '')
+    struct_id = ida_struct.get_struc_id(typename)
+    struct_ptr = ida_struct.get_struc(struct_id)
+
+
+    member_num = struct_ptr.members.count
+
+    struct_members = []
+
+    for i in range(member_num):
+        member = struct_ptr.members[i]
+
+        member_name = ida_struct.get_member_name(member.id)
+        member_type =  ida_typeinf.tinfo_t()
+        ida_struct.get_member_tinfo(member_type,member)
+
+        member_soff = member.soff
+        member_eoff = member.eoff
+        member_size = member_eoff - member_soff
+
+
+        struct_members.append([member_name,member_type,member_soff,member_size])
+
+    return struct_members
