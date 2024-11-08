@@ -1,4 +1,4 @@
 .vscode
-StackView/__pycache__
-StackView/QtContainers/__pycache__
+VarViewer/__pycache__
+VarViewer/QtContainers/__pycache__
 *.pyc
