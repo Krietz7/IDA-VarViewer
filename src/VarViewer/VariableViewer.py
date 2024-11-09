@@ -216,15 +216,16 @@ class VariableViewer(idaapi.PluginForm):
 
         elif vartype.get_realtype() == ida_typeinf.BT_PTR:
             target_type,target_size = GetPtrTargetInfo(vartype)
-            target_name = f"*{varname}"
-            target_id = f"{target_name}_{uuid.uuid4()}"
-            target_structstr = GetTypeName(target_type)
+            if target_size != -1:
+                target_name = f"*{varname}"
+                target_id = f"{target_name}_{uuid.uuid4()}"
+                target_structstr = GetTypeName(target_type)
 
-            self.VariableContainer.add_varible_member(varid,target_id,target_name,target_structstr)
-            target_members = self.AddVariableMembers(target_id,target_name,target_type)
+                self.VariableContainer.add_varible_member(varid,target_id,target_name,target_structstr)
+                target_members = self.AddVariableMembers(target_id,target_name,target_type)
 
-            self.varid_dict[target_id] = [GET_VALUE_BY_POINTER,VarInfo(target_name,target_size,0,target_type),target_members]
-            result.append(target_id)
+                self.varid_dict[target_id] = [GET_VALUE_BY_POINTER,VarInfo(target_name,target_size,0,target_type),target_members]
+                result.append(target_id)
 
         return result
 
@@ -362,8 +363,9 @@ class VariableViewer(idaapi.PluginForm):
             return False
         pointerInfo = self.varid_dict[VarID][1]
 
-        elems_type, _ = GetPtrTargetInfo(pointerInfo.type)
-        elem_size = elems_type.get_size()
+        elems_type, elem_size = GetPtrTargetInfo(pointerInfo.type)
+        if elem_size == -1:
+            return
         arrlen = pointerInfo.size // elem_size
 
         form = Arrlen_input_form(arrlen)
