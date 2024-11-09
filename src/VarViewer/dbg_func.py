@@ -155,7 +155,8 @@ def GetFunctionStackTrace():
     Get all function base addresses on the function call chain
     Return: function call chain sequence, function base address structure dictionary,
     '''
-    _,stack_pointer_name,_,instruction_pointer_name, =GetStackRegsName()
+    CpuInfo.create_instance()
+    _,stack_pointer_name,_,instruction_pointer_name = GetStackRegsName()
     try:
         sp_reg_value = get_reg_val(stack_pointer_name)
         ip_reg_value = get_reg_val(instruction_pointer_name)
@@ -177,13 +178,13 @@ def GetFunctionStackTrace():
         for depth in range(frame_depth - 1):
 
             func = get_fchunk(instruction_address)
-            func_base_addr = GetFrameBaseAddress(func,instruction_address,stackframe_address,CPUinfo.bitness,CPUinfo.endinness, depth)
+            func_base_addr = GetFrameBaseAddress(func,instruction_address,stackframe_address,CpuInfo.instance.bitness,CpuInfo.instance.endinness, depth)
 
             # Find the base address of the upper layer function based on the information
 
             if func_base_addr is not None:
                 instruction_address = trace[depth+1].callea
-                stackframe_address = func_base_addr + CPUinfo.bitnessSize
+                stackframe_address = func_base_addr + CpuInfo.instance.bitnessSize
                 func_frame_trace[func_base_addr] = func
                 func_trace_order.append(0)
             else:

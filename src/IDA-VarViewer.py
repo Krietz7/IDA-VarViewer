@@ -1,6 +1,7 @@
 import idaapi
 
 from VarViewer.config import *
+from VarViewer.dbg_stack import CpuInfo
 from VarViewer.StackViewer import *
 from VarViewer.VariableViewer import *
 
@@ -44,17 +45,21 @@ class VariableViewer_Menu(MenuContext):
         k = VariableViewer()
         k.Show("Variable Viewer")
 
-class StackInfo(idaapi.plugin_t):
+class VarViewer(idaapi.plugin_t):
     flags = idaapi.PLUGIN_KEEP
     comment = ""
     help = ""
-    wanted_name = "StackInfo"
-    wanted_hotkey = STACK_VIEW_HOTKEY
+    wanted_name = "VarViewer"
+    wanted_hotkey = ""
 
     def __init__(self):
         pass
 
     def init(self):
+        CpuInfo.create_instance()
+        if idaapi.IDA_SDK_VERSION < 770:
+            return idaapi.PLUGIN_SKIP
+
         StackViewer_Menu.register(self, "Open Stack View",STACK_VIEW_HOTKEY)
         VariableViewer_Menu.register(self, "Open Variable View",VARIABLE_VIEW_HOTKEY)
 
@@ -64,6 +69,8 @@ class StackInfo(idaapi.plugin_t):
         return idaapi.PLUGIN_OK
 
     def run(self,arg):
+        print("Initialized:",CpuInfo.instance.procname,CpuInfo.instance.cpu_struct)
+
         k = StackViewer()
         k.Show(WIDGET_TITLE)
 
@@ -71,4 +78,4 @@ class StackInfo(idaapi.plugin_t):
         pass
 
 def PLUGIN_ENTRY():
-    return StackInfo()
+    return VarViewer()

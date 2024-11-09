@@ -33,20 +33,28 @@ class CpuInfo():
         }
     }
 
+    instance = None
+
     def __init__(self):
         self.procname = self.get_structure()
         self.bitness = self.get_bitness()
         self.bitnessSize = self.bitness // 8
         self.is_bigendianness = self.get_endianness()
+        self.cpu_struct = None
+
         if self.procname == "metapc":
             self.cpu_struct =  {32:"x86",64:"x64"}[self.bitness]
+
 
         if not self.is_bigendianness:
             self.endinness = 'little'
         else:
             self.endinness = 'big'
 
-
+    @classmethod
+    def create_instance(cls):
+        cls.instance = cls()
+        return cls.instance
 
     @staticmethod
     def get_structure():
@@ -65,7 +73,8 @@ class CpuInfo():
     def get_endianness():
         return idaapi.get_inf_structure().is_be()
 
-CPUinfo = CpuInfo()
+CpuInfo.create_instance()
+
 
 
 
@@ -87,7 +96,7 @@ class StackVarRemark():
 
 
 def GetStackRegsName():
-    stack_registers = CPUinfo.stack_registers[CPUinfo.cpu_struct]
+    stack_registers = CpuInfo.instance.stack_registers[CpuInfo.instance.cpu_struct]
 
     base_pointer = stack_registers["BasePointer"]
     stack_pointer = stack_registers["StackPointer"]
@@ -206,9 +215,9 @@ def GetValueDescription(value, processed_addresses=None):
         processed_addresses = set()
 
     result = []
-    if CPUinfo.bitness == 32:
+    if CpuInfo.instance.bitness == 32:
         pointer_size = 4
-    elif CPUinfo.bitness == 64:
+    elif CpuInfo.instance.bitness == 64:
         pointer_size = 8
     else:
         return []
@@ -220,7 +229,7 @@ def GetValueDescription(value, processed_addresses=None):
     else:
         return []
 
-    if not CPUinfo.is_bigendianness:
+    if not CpuInfo.instance.is_bigendianness:
         endinness = 'little'
     else:
         endinness = 'big'

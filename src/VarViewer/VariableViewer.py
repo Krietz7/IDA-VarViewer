@@ -27,9 +27,10 @@ GET_VALUE_BY_POINTER = 4
 class VariableViewer(idaapi.PluginForm):
     def __init__(self):
         super().__init__()
-        self.Bitness = CPUinfo.bitness
+        CpuInfo.create_instance()
+        self.Bitness = CpuInfo.instance.bitness
         self.bitnessSize = self.Bitness // 8
-        self.endinness = CPUinfo.endinness
+        self.endinness = CpuInfo.instance.endinness
         self.base_pointer_name,self.stack_pointer_name,self.two_pointer_name,self.instruction_pointer_name = GetStackRegsName()
 
 
@@ -260,7 +261,7 @@ class VariableViewer(idaapi.PluginForm):
 
             out = None
             regname = get_mreg_name(varatreg,varsize,out)
-            var_bytes =  get_reg_val(regname).to_bytes(CPUinfo.bitnessSize,CPUinfo.endinness)
+            var_bytes =  get_reg_val(regname).to_bytes(CpuInfo.instance.bitnessSize,CpuInfo.instance.endinness)
             var_value = ConversionBytesToStr(var_bytes, varsize, vartype)
 
             if var_pre_value != var_value:
@@ -284,7 +285,7 @@ class VariableViewer(idaapi.PluginForm):
         elif varflag == GET_VALUE_BY_POINTER:
             if(containerbytes is not None or containerbytes == ""):
                 offset = varinfo.addr
-                varaddr = int.from_bytes(containerbytes[:CPUinfo.bitnessSize],CPUinfo.endinness) + offset
+                varaddr = int.from_bytes(containerbytes[:CpuInfo.instance.bitnessSize],CpuInfo.instance.endinness) + offset
 
             if(varaddr is not None and idaapi.is_loaded(varaddr) and idaapi.is_loaded(varaddr + varsize) and varsize > 0):
 

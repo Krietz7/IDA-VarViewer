@@ -13,9 +13,10 @@ from VarViewer.QtContainers.StackContainer import StackContainer
 class StackViewer(idaapi.PluginForm):
     def __init__(self):
         super().__init__()
-        self.Bitness = CPUinfo.bitness
-        self.bitnessSize = CPUinfo.bitnessSize
-        self.endinness = CPUinfo.endinness
+        CpuInfo.create_instance()
+        self.Bitness = CpuInfo.instance.bitness
+        self.bitnessSize = CpuInfo.instance.bitnessSize
+        self.endinness = CpuInfo.instance.endinness
         self.base_pointer_name,self.stack_pointer_name,\
             self.two_pointer_name,self.instruction_pointer_name = GetStackRegsName()
 
@@ -152,6 +153,8 @@ class StackViewer(idaapi.PluginForm):
                 follow_in_address = base_pointer_value
             else:
                 follow_in_address = self.followInAddress
+            if follow_in_address is None:
+                return False
 
             # Initialize based on followIn_address
             self.init_stack_line(follow_in_address,True)
@@ -193,7 +196,8 @@ class StackViewer(idaapi.PluginForm):
                 follow_in_address = base_pointer_value
             else:
                 follow_in_address = self.followInAddress
-
+            if follow_in_address is None:
+                return False
 
             # If the follow in address moves significantly, reset the viewer address
             if(follow_in_address < start_address + STACK_SIZE_ABOVE_MIN * self.bitnessSize or\
@@ -336,7 +340,7 @@ class StackViewer(idaapi.PluginForm):
                 varaddr = varinfo.addr
                 varsize = varinfo.size
                 varbytes = idc.get_bytes(varaddr,varsize)
-                varvalue = int.from_bytes(varbytes,byteorder=CPUinfo.endinness, signed=False)
+                varvalue = int.from_bytes(varbytes,byteorder=CpuInfo.instance.endinness, signed=False)
                 vartype = varinfo.type
 
                 if(varvalue != self.StackvarDict[address].VarInfoList[i].value or not check_same):
