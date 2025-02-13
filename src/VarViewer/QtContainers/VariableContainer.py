@@ -289,6 +289,11 @@ class VariableContainer(QWidget):
         if (VarID not in self._vars_dict or memberID in self._vars_dict or memberName is None):
             return False
 
+        if (VarID not in self._items_dict or
+                memberName in self._items_dict[VarID][1] or
+                memberName is None):
+            return False
+
         targetedit = self._vars_dict[VarID]
         item = QTreeWidgetItem()
         targetedit.addChild(item)
@@ -309,6 +314,8 @@ class VariableContainer(QWidget):
             edit.refresh()
             self.tree_widget.setItemWidget(item, i, edit)
 
+        self._items_dict[VarID][1].append(memberID)
+        self._items_dict[memberID] = [item,[]]
         self._vars_dict[memberID] = item
         return True
 
@@ -318,6 +325,7 @@ class VariableContainer(QWidget):
         targetedit = self._vars_dict[VarID]
         while targetedit.childCount() > 0:
             targetedit.removeChild(targetedit.child(0))
+        self._vars_dict.remove(VarID)
         return True
 
     def EditVaribleInfo(self, VarID, Text, column, color=None):
@@ -348,10 +356,11 @@ class VariableContainer(QWidget):
 
         parentitem = self._items_dict[parentitemID][0]
         item = self._items_dict[ItemID][0]
-
-        childitems_id = self._items_dict[ItemID][1]
+        childitems_id = self._items_dict[ItemID][1].copy()
         for childitem_id in childitems_id:
             self.RemoveItem(ItemID,childitem_id)
+            if childitem_id in self._vars_dict:
+                del self._vars_dict[childitem_id]
 
         parentitem.removeChild(item)
         del self._items_dict[ItemID]

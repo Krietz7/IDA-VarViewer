@@ -338,7 +338,10 @@ class VariableViewer(idaapi.PluginForm):
                 self.VariableContainer.RemoveItem(func_id[0],func_id[1])
                 self.framelessfunctionlist.remove([func,func_id])
 
-
+                if func_id[1] in self.func_var_dict:
+                    for varid in self.func_var_dict[func_id[1]]:
+                        self.remove_variable(varid)
+                    self.func_var_dict.pop(func_id[1])
 
     def widget_double_click(self,selected_data):
         if(selected_data in [None,""]):
