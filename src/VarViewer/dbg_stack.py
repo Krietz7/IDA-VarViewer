@@ -73,7 +73,7 @@ class CpuInfo():
     def get_endianness():
         return idaapi.get_inf_structure().is_be()
 
-CpuInfo.create_instance()
+
 
 
 

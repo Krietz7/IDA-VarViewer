@@ -8,7 +8,6 @@ from ida_struct import get_struc_id,get_struc,\
 from VarViewer.dbg_stack import *
 from VarViewer.dbg_func import VarInfo
 
-CpuInfo.create_instance()
 type_handlers = {
     ida_typeinf.BT_UNK: str,
     ida_typeinf.BT_VOID: str,
