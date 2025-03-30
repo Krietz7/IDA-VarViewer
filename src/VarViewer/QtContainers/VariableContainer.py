@@ -325,7 +325,6 @@ class VariableContainer(QWidget):
         targetedit = self._vars_dict[VarID]
         while targetedit.childCount() > 0:
             targetedit.removeChild(targetedit.child(0))
-        self._vars_dict.remove(VarID)
         return True
 
     def EditVaribleInfo(self, VarID, Text, column, color=None):
